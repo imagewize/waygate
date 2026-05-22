@@ -77,8 +77,18 @@ Use atomic commits: each commit represents one logical change and must build/pas
 
 Never bundle unrelated changes into a single commit. Use conventional commit prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
 
+Never mention Claude, Claude Code, or Claude AI in commit messages.
+
 ## Plugin Constants
 
 - `WAYGATE_VERSION` — current plugin version
 - `WAYGATE_PLUGIN_DIR` — absolute path to plugin directory
 - `WAYGATE_PLUGIN_URL` — URL to plugin directory
+
+## Version Bump Checklist
+
+When releasing a new version, update the version string in **three places**:
+
+1. `waygate.php` line 8 — `* Version:` plugin header
+2. `waygate.php` line 19 — `define( 'WAYGATE_VERSION', ... )` constant
+3. `CHANGELOG.md` — add a new `## [x.y.z] - YYYY-MM-DD` section at the top
