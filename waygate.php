@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WAYGATE_VERSION', '0.2.0' );
+define( 'WAYGATE_VERSION', '0.3.0' );
 define( 'WAYGATE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WAYGATE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
