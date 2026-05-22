@@ -23,9 +23,7 @@
     "squizlabs/php_codesniffer": "^3.8"
   },
   "autoload": {
-    "psr-4": {
-      "Imagewize\\Waygate\\": "includes/"
-    }
+    "classmap": ["includes/"]
   },
   "extra": {
     "installer-paths": {

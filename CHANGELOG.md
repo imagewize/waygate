@@ -5,6 +5,14 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-22
+
+### Fixed
+- Switch Composer autoloading from `psr-4` to `classmap` to resolve class-skipping warnings caused by WordPress-style `class-hyphenated-name.php` filenames not complying with PSR-4 filename requirements
+
+### Added
+- `CLAUDE.md` with project guidance for Claude Code
+
 ## [0.2.0] - 2026-05-22
 
 ### Added
