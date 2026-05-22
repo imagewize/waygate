@@ -69,7 +69,7 @@ plugins_loaded → PatternLab::init()
 
 ## Commits
 
-Use atomic commits: one logical change per commit. Each commit should be independently understandable and build/pass on its own. Typical split for a patch:
+Use atomic commits: each commit represents one logical change and must build/pass on its own. Group files that belong to the same logical change into one commit; split files that represent different changes into separate commits. Typical split for a patch:
 
 - `fix: switch autoloader from psr-4 to classmap` — the code change
 - `docs: update CHANGELOG for v0.3.0` — changelog entry
