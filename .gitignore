@@ -1,0 +1,17 @@
+/vendor/
+/node_modules/
+/.phpunit.cache/
+/tests/phpunit/tmp/
+
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artefacts
+/dist/
