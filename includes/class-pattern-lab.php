@@ -16,7 +16,7 @@ class PatternLab {
 	 * @return array[]
 	 */
 	public static function get_patterns(): array {
-		$all      = WP_Block_Patterns_Registry::get_instance()->get_all_registered();
+		$all      = \WP_Block_Patterns_Registry::get_instance()->get_all_registered();
 		$patterns = [];
 
 		foreach ( $all as $p ) {
