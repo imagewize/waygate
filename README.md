@@ -1,19 +1,21 @@
 # Waygate
 
-**AI-Powered Pattern Page Builder for the Elayne Block Theme**
+**AI-Powered Pattern Page Builder for Block Themes**
 
-Waygate lets you assemble WordPress pages from [Elayne](https://github.com/imagewize/elayne) block patterns — manually or via a natural-language AI prompt powered by the WordPress AI Client (WordPress 7.0+).
+Waygate lets you assemble WordPress pages from block patterns — manually or via a natural-language AI prompt powered by the WordPress AI Client (WordPress 7.0+). Works with any block theme; [Elayne](https://github.com/imagewize/elayne) is the primary supported theme.
 
-> **Beta** — v0.2.0. Use on staging/development sites; not yet recommended for production.
+> **Beta** — v0.4.0. Use on staging/development sites; not yet recommended for production.
 
 ---
 
 ## Features
 
-- **Pattern catalog** — Browse all registered Elayne patterns with slug, title, and categories
+- **Pattern catalog** — Browse registered block patterns with slug, title, and categories; filter by category
 - **AI page generation** — Describe the page you want; the AI picks patterns and creates a draft
+- **Feature detection** — AI form is hidden automatically when no provider supports text generation
 - **Abilities API** — Exposes `elayne/list-patterns` and `elayne/create-page` abilities for WP 7.0+
 - **Multi-provider** — Works with Mistral, Claude, OpenAI, or Gemini via WP AI Client
+- **Any block theme** — Default prefix is `elayne/`; extend via the `waygate_pattern_prefixes` filter
 
 ---
 
@@ -23,7 +25,7 @@ Waygate lets you assemble WordPress pages from [Elayne](https://github.com/image
 |---|---|
 | PHP | 8.0+ |
 | WordPress | 6.5+ |
-| Elayne theme | Recommended |
+| Block theme | Any; Elayne recommended |
 | WordPress AI Client | 7.0+ (optional, for AI features) |
 
 ---
@@ -64,7 +66,7 @@ Then add `MISTRAL_API_KEY=your_key` to your site `.env`.
 ## Usage
 
 1. Go to **Tools → Waygate** in the WordPress admin
-2. Browse registered Elayne patterns in the catalog
+2. Browse registered patterns in the catalog; use the category dropdown to filter
 3. Optionally type a page description and click **Generate Page** to create an AI-assembled draft
 4. Open the draft in the block editor, adjust as needed, and publish
 
@@ -87,6 +89,7 @@ When WordPress 7.0's Abilities API is available, Waygate registers two abilities
 git clone https://github.com/imagewize/waygate.git
 cd waygate
 composer install
+vendor/bin/phpunit --configuration phpunit.xml
 ```
 
 ---
