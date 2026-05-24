@@ -5,6 +5,20 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-24
+
+### Added
+- Feature detection: `AiIntegration::is_text_generation_supported()` hides the AI generation form and updates the status badge when no configured provider supports text generation
+- Ability annotations: `readonly` on `elayne/list-patterns` and `idempotent` on `elayne/create-page` for clearer REST API semantics
+- Generic pattern prefix support via `waygate_pattern_prefixes` filter — plugin now works with any block theme, not just Elayne
+- Category filter dropdown in the admin pattern catalog, with server-side filtering and a clear link
+- PHPUnit 10 test infrastructure (`phpunit.xml`, `tests/bootstrap.php`) with 10 unit tests covering `PatternLab` prefix filtering and `AiIntegration` feature detection
+
+### Changed
+- Admin pattern catalog heading updated to show filtered count vs. total
+- Category display in pattern table strips namespace prefix generically (works with any theme namespace)
+- Error message for missing valid patterns is no longer Elayne-specific
+
 ## [0.3.2] - 2026-05-24
 
 ### Added
