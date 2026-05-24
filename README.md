@@ -23,7 +23,7 @@ Waygate lets you assemble WordPress pages from block patterns — manually or vi
 
 | Requirement | Version |
 |---|---|
-| PHP | 8.0+ |
+| PHP | 8.3+ |
 | WordPress | 6.5+ |
 | Block theme | Any; Elayne recommended |
 | WordPress AI Client | 7.0+ (optional, for AI features) |

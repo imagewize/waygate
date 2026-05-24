@@ -8,7 +8,7 @@ Waygate is a standalone WordPress plugin that provides AI-powered pattern page b
 
 - **Package:** `imagewize/waygate` on Packagist
 - **Namespace:** `Imagewize\Waygate`
-- **Requires:** PHP 8.0+, WordPress 6.5+
+- **Requires:** PHP 8.3+, WordPress 6.5+
 
 ## Commands
 
