@@ -21,8 +21,9 @@ class Admin {
 	}
 
 	public static function render_page(): void {
-		$ai_available = function_exists( 'wp_ai_client_prompt' );
-		$result       = null;
+		$ai_available      = function_exists( 'wp_ai_client_prompt' );
+		$text_gen_supported = AiIntegration::is_text_generation_supported();
+		$result            = null;
 
 		if (
 			isset( $_POST['waygate_action'] ) &&
@@ -31,8 +32,8 @@ class Admin {
 		) {
 			if ( ! current_user_can( 'publish_pages' ) ) {
 				$result = [ 'error' => 'You do not have permission to create pages.' ];
-			} elseif ( ! $ai_available ) {
-				$result = [ 'error' => 'WP AI Client is not available. Install a provider plugin first.' ];
+			} elseif ( ! $text_gen_supported ) {
+				$result = [ 'error' => 'Text generation is not supported by the configured AI provider.' ];
 			} else {
 				$description = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
 
@@ -51,13 +52,13 @@ class Admin {
 		<div class="wrap" style="max-width:900px">
 			<h1>Waygate <span style="font-size:.7em;font-weight:400;color:#888">— Pattern Page Builder</span></h1>
 
-			<?php self::status_notices( $ai_available ); ?>
+			<?php self::status_notices( $ai_available, $text_gen_supported ); ?>
 
 			<?php if ( $result ) : ?>
 				<?php self::result_notice( $result ); ?>
 			<?php endif; ?>
 
-			<?php if ( $ai_available ) : ?>
+			<?php if ( $text_gen_supported ) : ?>
 			<div class="card" style="max-width:100%;padding:20px 24px;margin-bottom:24px">
 				<h2 style="margin-top:0">Generate a page with AI</h2>
 				<p>Describe the page you want. The AI will select appropriate Elayne patterns and create a draft.</p>
@@ -120,16 +121,24 @@ class Admin {
 		<?php
 	}
 
-	private static function status_notices( bool $ai_available ): void {
+	private static function status_notices( bool $ai_available, bool $text_gen_supported ): void {
 		$abilities_available = function_exists( 'wp_register_ability' );
 		$mistral_available   = class_exists( 'SaarniLauri\AiProviderForMistral\Provider\ProviderForMistral' );
 		$mistral_key_set     = ! empty( getenv( 'MISTRAL_API_KEY' ) );
 		?>
 		<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
-			<div class="notice notice-<?php echo $ai_available ? 'success' : 'warning'; ?>" style="margin:0;flex:1;min-width:180px;padding:8px 12px">
-				<strong><?php echo $ai_available ? '✓' : '✗'; ?> WP AI Client</strong>
+			<div class="notice notice-<?php echo $text_gen_supported ? 'success' : ( $ai_available ? 'warning' : 'error' ); ?>" style="margin:0;flex:1;min-width:180px;padding:8px 12px">
+				<strong><?php echo $text_gen_supported ? '✓' : '✗'; ?> WP AI Client</strong>
 				<span style="color:#666;font-size:12px;display:block">
-					<?php echo $ai_available ? 'wp_ai_client_prompt() ready' : 'Not available — install a provider via Settings → Connectors'; ?>
+					<?php
+					if ( $text_gen_supported ) {
+						echo 'Text generation supported';
+					} elseif ( $ai_available ) {
+						echo 'Installed — no provider supports text generation';
+					} else {
+						echo 'Not available — install a provider via Settings → Connectors';
+					}
+					?>
 				</span>
 			</div>
 			<div class="notice notice-<?php echo $abilities_available ? 'success' : 'info'; ?>" style="margin:0;flex:1;min-width:180px;padding:8px 12px">

@@ -10,6 +10,17 @@ class AiIntegration {
 		add_action( 'init', [ self::class, 'register_mistral_provider' ], 6 );
 	}
 
+	public static function is_text_generation_supported(): bool {
+		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
+			return false;
+		}
+		try {
+			return (bool) wp_ai_client_prompt( 'test' )->is_supported_for_text_generation();
+		} catch ( \Throwable ) {
+			return false;
+		}
+	}
+
 	/**
 	 * Register the Mistral provider with the WordPress AI Client registry.
 	 *
