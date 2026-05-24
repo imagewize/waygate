@@ -1,7 +1,7 @@
 # Waygate Roadmap & Improvement Ideas
 
-> **Document Version**: 1.0.0  
-> **Last Updated**: 2026-05-22  
+> **Document Version**: 1.1.0  
+> **Last Updated**: 2026-05-24  
 > **Status**: Draft
 
 This document outlines potential improvements and feature additions for Waygate, based on WordPress 7.0 AI Client and Abilities API capabilities.
@@ -73,9 +73,9 @@ Based on [Introducing the AI Client in WordPress 7.0](https://make.wordpress.org
 
 ## Improvement Ideas
 
-### Phase 1: Quick Wins (Low Effort, High Impact)
+### Phase 1: Quick Wins ✅ Complete
 
-#### 1. Add Feature Detection
+#### 1. Add Feature Detection ✅
 **File**: `includes/class-ai-integration.php`  
 **File**: `includes/class-admin.php`
 
@@ -88,7 +88,7 @@ $image_gen_supported = $builder->is_supported_for_image_generation();
 
 **Benefit**: Hide AI features when no compatible provider is configured.
 
-#### 2. Add Ability Annotations
+#### 2. Add Ability Annotations ✅
 **File**: `includes/class-abilities-api.php`
 
 ```php
@@ -121,7 +121,7 @@ wp_register_ability(
 
 **Benefit**: Better REST API behavior, clearer ability semantics.
 
-#### 3. Support Generic Pattern Prefixes
+#### 3. Support Generic Pattern Prefixes ✅
 **File**: `includes/class-pattern-lab.php`
 
 ```php
@@ -134,14 +134,14 @@ public static function get_patterns(): array {
 
 **Benefit**: Works with any block theme, not just Elayne.
 
-#### 4. Add Pattern Category Filter in Admin UI
+#### 4. Add Pattern Category Filter in Admin UI ✅
 **File**: `includes/class-admin.php`
 
 Add a dropdown to filter patterns by category in the catalog table.
 
 **Benefit**: Easier pattern discovery for users.
 
-### Phase 2: Medium Effort
+### Phase 2: Medium Effort ← **Next Up**
 
 #### 5. Add Image Generation for Pattern Previews
 **New file**: `includes/class-image-generator.php`
@@ -446,21 +446,23 @@ public static function track_pattern_usage( string $pattern_slug ): void {
 
 ### Recommended Order
 
-1. Feature detection, ability annotations, generic prefixes — *Phase 1* (2–3 days with tests)
-2. REST API, client-side abilities, prompt templates — *Phase 2* (3–5 days)
-3. Image generation for previews — *Phase 2* (2–3 days)
-4. Batch page creation — *Phase 2* (1–2 days)
-5. Cost tracking, pattern popularity — *Phase 3* (2–3 days)
-6. Advanced features based on user feedback — *Phase 3, speculative*
+1. ~~Feature detection, ability annotations, generic prefixes — *Phase 1*~~ ✅ Done
+2. Prompt templates — *Phase 2* (1–2 days) ← **Start here**
+3. REST API endpoints — *Phase 2* (2–3 days)
+4. Client-side abilities for editor integration — *Phase 2* (2–3 days)
+5. Image generation for previews — *Phase 2* (2–3 days)
+6. Batch page creation — *Phase 2* (1–2 days)
+7. Cost tracking, pattern popularity — *Phase 3* (2–3 days)
+8. Advanced features based on user feedback — *Phase 3, speculative*
 
-### Quick Start (2–3 days with tests)
+### Quick Start — Phase 1 Complete ✅
 
-> The four items below are low-effort code changes, but "1 day" assumes no test coverage. If you're writing or updating PHPUnit tests alongside each change (recommended), budget 2–3 days.
+All four Phase 1 items shipped as of 2026-05-24:
 
-- Add feature detection
-- Add ability annotations
-- Add generic pattern prefix filter
-- Add category filter to admin UI
+- ~~Add feature detection~~ ✅
+- ~~Add ability annotations~~ ✅
+- ~~Add generic pattern prefix filter~~ ✅
+- ~~Add category filter to admin UI~~ ✅
 
 ---
 
@@ -574,3 +576,4 @@ const abilities = getAbilities();
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-05-22 | Initial draft | Created roadmap document |
+| 2026-05-24 | Jasper Frumau | Marked Phase 1 complete; Phase 2 is next |
