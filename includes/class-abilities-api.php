@@ -55,7 +55,10 @@ class AbilitiesApi {
 					return $patterns;
 				},
 				'permission_callback' => fn() => current_user_can( 'edit_posts' ),
-				'meta'                => [ 'show_in_rest' => true ],
+				'meta'                => [
+					'show_in_rest' => true,
+					'annotations'  => [ 'readonly' => true ],
+				],
 			]
 		);
 
@@ -104,7 +107,10 @@ class AbilitiesApi {
 					];
 				},
 				'permission_callback' => fn() => current_user_can( 'publish_pages' ),
-				'meta'                => [ 'show_in_rest' => true ],
+				'meta'                => [
+					'show_in_rest' => true,
+					'annotations'  => [ 'idempotent' => true ],
+				],
 			]
 		);
 	}

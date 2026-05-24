@@ -17,10 +17,23 @@ class PatternLab {
 	 */
 	public static function get_patterns(): array {
 		$all      = \WP_Block_Patterns_Registry::get_instance()->get_all_registered();
+		$prefixes = apply_filters( 'waygate_pattern_prefixes', [ 'elayne/' ] );
 		$patterns = [];
 
 		foreach ( $all as $p ) {
-			if ( empty( $p['slug'] ) || ! str_starts_with( $p['slug'], 'elayne/' ) ) {
+			if ( empty( $p['slug'] ) ) {
+				continue;
+			}
+
+			$matches = false;
+			foreach ( $prefixes as $prefix ) {
+				if ( str_starts_with( $p['slug'], $prefix ) ) {
+					$matches = true;
+					break;
+				}
+			}
+
+			if ( ! $matches ) {
 				continue;
 			}
 
@@ -51,7 +64,7 @@ class PatternLab {
 		foreach ( $pattern_slugs as $slug ) {
 			$slug = sanitize_text_field( $slug );
 
-			if ( ! preg_match( '/^elayne\/[a-z0-9-]+$/', $slug ) ) {
+			if ( ! preg_match( '/^[a-z0-9_-]+\/[a-z0-9_-]+$/', $slug ) ) {
 				continue;
 			}
 
@@ -63,7 +76,7 @@ class PatternLab {
 		}
 
 		if ( empty( $content ) ) {
-			return new \WP_Error( 'no_valid_patterns', 'No valid Elayne patterns were selected.' );
+			return new \WP_Error( 'no_valid_patterns', 'No valid patterns were selected.' );
 		}
 
 		return wp_insert_post(

@@ -21,8 +21,9 @@ class Admin {
 	}
 
 	public static function render_page(): void {
-		$ai_available = function_exists( 'wp_ai_client_prompt' );
-		$result       = null;
+		$ai_available      = function_exists( 'wp_ai_client_prompt' );
+		$text_gen_supported = AiIntegration::is_text_generation_supported();
+		$result            = null;
 
 		if (
 			isset( $_POST['waygate_action'] ) &&
@@ -31,8 +32,8 @@ class Admin {
 		) {
 			if ( ! current_user_can( 'publish_pages' ) ) {
 				$result = [ 'error' => 'You do not have permission to create pages.' ];
-			} elseif ( ! $ai_available ) {
-				$result = [ 'error' => 'WP AI Client is not available. Install a provider plugin first.' ];
+			} elseif ( ! $text_gen_supported ) {
+				$result = [ 'error' => 'Text generation is not supported by the configured AI provider.' ];
 			} else {
 				$description = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
 
@@ -44,20 +45,51 @@ class Admin {
 			}
 		}
 
-		$patterns = PatternLab::get_patterns();
-		usort( $patterns, fn( $a, $b ) => strcmp( $a['slug'], $b['slug'] ) );
+		$all_patterns = PatternLab::get_patterns();
+		usort( $all_patterns, fn( $a, $b ) => strcmp( $a['slug'], $b['slug'] ) );
+
+		// Build unique category list (strip namespace prefix for display/filtering).
+		$all_categories = [];
+		foreach ( $all_patterns as $p ) {
+			foreach ( $p['categories'] as $cat ) {
+				$parts                         = explode( '/', $cat );
+				$all_categories[ end( $parts ) ] = true;
+			}
+		}
+		ksort( $all_categories );
+
+		$selected_category = isset( $_GET['waygate_category'] ) ? sanitize_key( $_GET['waygate_category'] ) : '';
+
+		if ( $selected_category && isset( $all_categories[ $selected_category ] ) ) {
+			$patterns = array_values(
+				array_filter(
+					$all_patterns,
+					function ( $p ) use ( $selected_category ) {
+						foreach ( $p['categories'] as $cat ) {
+							$parts = explode( '/', $cat );
+							if ( end( $parts ) === $selected_category ) {
+								return true;
+							}
+						}
+						return false;
+					}
+				)
+			);
+		} else {
+			$patterns = $all_patterns;
+		}
 
 		?>
 		<div class="wrap" style="max-width:900px">
 			<h1>Waygate <span style="font-size:.7em;font-weight:400;color:#888">— Pattern Page Builder</span></h1>
 
-			<?php self::status_notices( $ai_available ); ?>
+			<?php self::status_notices( $ai_available, $text_gen_supported ); ?>
 
 			<?php if ( $result ) : ?>
 				<?php self::result_notice( $result ); ?>
 			<?php endif; ?>
 
-			<?php if ( $ai_available ) : ?>
+			<?php if ( $text_gen_supported ) : ?>
 			<div class="card" style="max-width:100%;padding:20px 24px;margin-bottom:24px">
 				<h2 style="margin-top:0">Generate a page with AI</h2>
 				<p>Describe the page you want. The AI will select appropriate Elayne patterns and create a draft.</p>
@@ -90,10 +122,29 @@ class Admin {
 
 			<div class="card" style="max-width:100%;padding:20px 24px">
 				<h2 style="margin-top:0">
-					Available Elayne patterns
-					<span style="color:#888;font-weight:400">(<?php echo count( $patterns ); ?>)</span>
+					Available patterns
+					<span style="color:#888;font-weight:400">
+						(<?php echo count( $patterns ); ?><?php echo $selected_category ? ' filtered' : ''; ?> of <?php echo count( $all_patterns ); ?>)
+					</span>
 				</h2>
-				<p>These pattern slugs are registered and available for page assembly.</p>
+
+				<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+					<form method="get" style="margin:0;display:flex;align-items:center;gap:8px">
+						<input type="hidden" name="page" value="waygate">
+						<label for="waygate-category-filter" style="font-weight:600">Filter by category:</label>
+						<select id="waygate-category-filter" name="waygate_category" onchange="this.form.submit()">
+							<option value="">All categories</option>
+							<?php foreach ( array_keys( $all_categories ) as $cat ) : ?>
+							<option value="<?php echo esc_attr( $cat ); ?>" <?php selected( $selected_category, $cat ); ?>>
+								<?php echo esc_html( $cat ); ?>
+							</option>
+							<?php endforeach; ?>
+						</select>
+						<?php if ( $selected_category ) : ?>
+						<a href="<?php echo esc_url( admin_url( 'tools.php?page=waygate' ) ); ?>" class="button">Clear</a>
+						<?php endif; ?>
+					</form>
+				</div>
 
 				<table class="widefat striped" style="width:100%">
 					<thead>
@@ -109,7 +160,16 @@ class Admin {
 							<td><code style="font-size:12px"><?php echo esc_html( $p['slug'] ); ?></code></td>
 							<td><?php echo esc_html( $p['title'] ); ?></td>
 							<td style="color:#666;font-size:12px">
-								<?php echo esc_html( implode( ', ', array_map( fn( $c ) => str_replace( 'elayne/', '', $c ), $p['categories'] ) ) ); ?>
+								<?php
+								$cats = array_map(
+									function ( $c ) {
+										$parts = explode( '/', $c );
+										return end( $parts );
+									},
+									$p['categories']
+								);
+								echo esc_html( implode( ', ', $cats ) );
+								?>
 							</td>
 						</tr>
 						<?php endforeach; ?>
@@ -120,16 +180,24 @@ class Admin {
 		<?php
 	}
 
-	private static function status_notices( bool $ai_available ): void {
+	private static function status_notices( bool $ai_available, bool $text_gen_supported ): void {
 		$abilities_available = function_exists( 'wp_register_ability' );
 		$mistral_available   = class_exists( 'SaarniLauri\AiProviderForMistral\Provider\ProviderForMistral' );
 		$mistral_key_set     = ! empty( getenv( 'MISTRAL_API_KEY' ) );
 		?>
 		<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
-			<div class="notice notice-<?php echo $ai_available ? 'success' : 'warning'; ?>" style="margin:0;flex:1;min-width:180px;padding:8px 12px">
-				<strong><?php echo $ai_available ? '✓' : '✗'; ?> WP AI Client</strong>
+			<div class="notice notice-<?php echo $text_gen_supported ? 'success' : ( $ai_available ? 'warning' : 'error' ); ?>" style="margin:0;flex:1;min-width:180px;padding:8px 12px">
+				<strong><?php echo $text_gen_supported ? '✓' : '✗'; ?> WP AI Client</strong>
 				<span style="color:#666;font-size:12px;display:block">
-					<?php echo $ai_available ? 'wp_ai_client_prompt() ready' : 'Not available — install a provider via Settings → Connectors'; ?>
+					<?php
+					if ( $text_gen_supported ) {
+						echo 'Text generation supported';
+					} elseif ( $ai_available ) {
+						echo 'Installed — no provider supports text generation';
+					} else {
+						echo 'Not available — install a provider via Settings → Connectors';
+					}
+					?>
 				</span>
 			</div>
 			<div class="notice notice-<?php echo $abilities_available ? 'success' : 'info'; ?>" style="margin:0;flex:1;min-width:180px;padding:8px 12px">
