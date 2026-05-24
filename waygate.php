@@ -12,6 +12,8 @@
  * Domain Path: /languages
  * Requires at least: 7.0
  * Requires PHP: 8.3
+ *
+ * @package Imagewize\Waygate
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -25,7 +27,7 @@ require_once WAYGATE_PLUGIN_DIR . 'includes/class-abilities-api.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-ai-integration.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-admin.php';
 
-add_action( 'plugins_loaded', [ 'Imagewize\\Waygate\\PatternLab', 'init' ] );
-add_action( 'plugins_loaded', [ 'Imagewize\\Waygate\\AiIntegration', 'init' ] );
-add_action( 'plugins_loaded', [ 'Imagewize\\Waygate\\AbilitiesApi', 'init' ] );
-add_action( 'plugins_loaded', [ 'Imagewize\\Waygate\\Admin', 'init' ] );
+add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\PatternLab', 'init' ) );
+add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\AiIntegration', 'init' ) );
+add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\AbilitiesApi', 'init' ) );
+add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Admin', 'init' ) );

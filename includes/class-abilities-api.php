@@ -1,15 +1,29 @@
 <?php
+/**
+ * Registers WordPress Abilities API entries for Waygate actions.
+ *
+ * @package Imagewize\Waygate
+ */
 
 namespace Imagewize\Waygate;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Registers the elayne/list-patterns and elayne/create-page abilities.
+ */
 class AbilitiesApi {
 
+	/**
+	 * Hooks into the Abilities API init action.
+	 */
 	public static function init(): void {
-		add_action( 'wp_abilities_api_init', [ self::class, 'register_abilities' ] );
+		add_action( 'wp_abilities_api_init', array( self::class, 'register_abilities' ) );
 	}
 
+	/**
+	 * Registers both abilities with the WordPress Abilities API.
+	 */
 	public static function register_abilities(): void {
 		if ( ! function_exists( 'wp_register_ability' ) ) {
 			return;
@@ -17,32 +31,38 @@ class AbilitiesApi {
 
 		wp_register_ability(
 			'elayne/list-patterns',
-			[
+			array(
 				'label'               => __( 'List Elayne Patterns', 'waygate' ),
 				'description'         => __( 'Returns all available Elayne block patterns with slug, title, categories and keywords.', 'waygate' ),
 				'category'            => 'content',
-				'input_schema'        => [
+				'input_schema'        => array(
 					'type'       => 'object',
-					'properties' => [
-						'category' => [
+					'properties' => array(
+						'category' => array(
 							'type'        => 'string',
 							'description' => 'Optional category filter, e.g. "hero", "features", "cta".',
-						],
-					],
-				],
-				'output_schema'       => [
+						),
+					),
+				),
+				'output_schema'       => array(
 					'type'  => 'array',
-					'items' => [
+					'items' => array(
 						'type'       => 'object',
-						'properties' => [
-							'slug'       => [ 'type' => 'string' ],
-							'title'      => [ 'type' => 'string' ],
-							'categories' => [ 'type' => 'array', 'items' => [ 'type' => 'string' ] ],
-							'keywords'   => [ 'type' => 'array', 'items' => [ 'type' => 'string' ] ],
-						],
-					],
-				],
-				'execute_callback'    => function ( array $params = [] ): array {
+						'properties' => array(
+							'slug'       => array( 'type' => 'string' ),
+							'title'      => array( 'type' => 'string' ),
+							'categories' => array(
+								'type'  => 'array',
+								'items' => array( 'type' => 'string' ),
+							),
+							'keywords'   => array(
+								'type'  => 'array',
+								'items' => array( 'type' => 'string' ),
+							),
+						),
+					),
+				),
+				'execute_callback'    => function ( array $params = array() ): array {
 					$patterns = PatternLab::get_patterns();
 
 					if ( ! empty( $params['category'] ) ) {
@@ -55,39 +75,39 @@ class AbilitiesApi {
 					return $patterns;
 				},
 				'permission_callback' => fn() => current_user_can( 'edit_posts' ),
-				'meta'                => [
+				'meta'                => array(
 					'show_in_rest' => true,
-					'annotations'  => [ 'readonly' => true ],
-				],
-			]
+					'annotations'  => array( 'readonly' => true ),
+				),
+			)
 		);
 
 		wp_register_ability(
 			'elayne/create-page',
-			[
+			array(
 				'label'               => __( 'Create Page from Elayne Patterns', 'waygate' ),
 				'description'         => __( 'Creates a new WordPress draft page assembled from Elayne block patterns.', 'waygate' ),
 				'category'            => 'content',
-				'input_schema'        => [
+				'input_schema'        => array(
 					'type'       => 'object',
-					'properties' => [
-						'title'    => [
+					'properties' => array(
+						'title'    => array(
 							'type'        => 'string',
 							'description' => 'Page title.',
-						],
-						'patterns' => [
+						),
+						'patterns' => array(
 							'type'        => 'array',
-							'items'       => [ 'type' => 'string' ],
+							'items'       => array( 'type' => 'string' ),
 							'description' => 'Ordered list of Elayne pattern slugs.',
-						],
-						'status'   => [
+						),
+						'status'   => array(
 							'type'    => 'string',
-							'enum'    => [ 'draft', 'publish' ],
+							'enum'    => array( 'draft', 'publish' ),
 							'default' => 'draft',
-						],
-					],
-					'required'   => [ 'title', 'patterns' ],
-				],
+						),
+					),
+					'required'   => array( 'title', 'patterns' ),
+				),
 				'execute_callback'    => function ( array $params ): array {
 					$result = PatternLab::create_page(
 						$params['title'],
@@ -96,22 +116,25 @@ class AbilitiesApi {
 					);
 
 					if ( is_wp_error( $result ) ) {
-						return [ 'success' => false, 'error' => $result->get_error_message() ];
+						return array(
+							'success' => false,
+							'error'   => $result->get_error_message(),
+						);
 					}
 
-					return [
+					return array(
 						'success'  => true,
 						'page_id'  => $result,
 						'edit_url' => get_edit_post_link( $result, 'raw' ),
 						'view_url' => get_permalink( $result ),
-					];
+					);
 				},
 				'permission_callback' => fn() => current_user_can( 'publish_pages' ),
-				'meta'                => [
+				'meta'                => array(
 					'show_in_rest' => true,
-					'annotations'  => [ 'idempotent' => true ],
-				],
-			]
+					'annotations'  => array( 'idempotent' => true ),
+				),
+			)
 		);
 	}
 }

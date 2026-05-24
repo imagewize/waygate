@@ -24,7 +24,7 @@ find . -name "*.php" -not -path "*/vendor/*" -exec php -l {} \;
 
 **Run PHP CodeSniffer:**
 ```bash
-vendor/bin/phpcs --standard=WordPress includes/ waygate.php
+vendor/bin/phpcs
 ```
 
 **Run PHPUnit:**
