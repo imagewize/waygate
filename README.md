@@ -52,35 +52,34 @@ composer require imagewize/waygate
 
 ### AI features (optional)
 
-AI page generation requires a running AI provider. Waygate supports:
+AI page generation requires a running AI provider. WordPress 7.0+ supports Mistral, Claude (Anthropic), OpenAI, and Gemini via its built-in Connectors system.
 
-**Mistral** — two installation paths, both read `MISTRAL_API_KEY` from the environment:
-
-_Bedrock / Composer (recommended):_
+**Installing provider plugins** (Bedrock / Composer):
 
 ```bash
 composer require wp-plugin/ai-provider-for-mistral
+composer require wp-plugin/ai-provider-for-anthropic
+# OpenAI and Gemini can be installed from Settings → Connectors in the WP admin
 ```
 
-The plugin self-registers with the WP AI Client. Add `MISTRAL_API_KEY=your_key` to your site `.env`; Bedrock exposes it automatically.
+**Configuring API keys** — every provider supports two methods; environment variable takes priority over the database:
 
-_Composer library (non-Bedrock):_
+| Provider | Env var | Admin UI |
+|---|---|---|
+| Mistral | `MISTRAL_API_KEY` in `.env` | Settings → Connectors |
+| Claude (Anthropic) | `ANTHROPIC_API_KEY` in `.env` | Settings → Connectors |
+| OpenAI | `OPENAI_API_KEY` in `.env` | Settings → Connectors |
+| Google (Gemini) | `GOOGLE_API_KEY` in `.env` | Settings → Connectors |
+
+On Bedrock, add the key to your site `.env` and it is picked up automatically. On standard WordPress installs, enter the key directly in **Settings → Connectors** and it is stored in the database.
+
+**Mistral via Composer library** (non-Bedrock, without the WP plugin):
 
 ```bash
 composer require saarnilauri/ai-provider-for-mistral
 ```
 
-Waygate registers this provider manually since the library distribution excludes `plugin.php`. Set `MISTRAL_API_KEY` as a server environment variable or via your host's environment config.
-
-**Claude (Anthropic)** — Bedrock / Composer:
-
-```bash
-composer require wp-plugin/ai-provider-for-anthropic
-```
-
-Add `ANTHROPIC_API_KEY=your_key` to your site `.env`.
-
-**OpenAI / Gemini**: Install the relevant provider plugin via **Settings → Connectors** in WordPress 7.0+.
+Waygate registers this provider manually since the library distribution excludes `plugin.php`. Set `MISTRAL_API_KEY` as a server environment variable.
 
 ---
 
