@@ -12,12 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ability annotations: `readonly` on `elayne/list-patterns` and `idempotent` on `elayne/create-page` for clearer REST API semantics
 - Generic pattern prefix support via `waygate_pattern_prefixes` filter — plugin now works with any block theme, not just Elayne
 - Category filter dropdown in the admin pattern catalog, with server-side filtering and a clear link
-- PHPUnit 10 test infrastructure (`phpunit.xml`, `tests/bootstrap.php`) with 10 unit tests covering `PatternLab` prefix filtering and `AiIntegration` feature detection
+- PHPUnit 11 test infrastructure (`phpunit.xml`, `tests/bootstrap.php`) with 10 unit tests covering `PatternLab` prefix filtering and `AiIntegration` feature detection
+- PHPUnit test step added to CI workflow
 
 ### Changed
+- Minimum PHP requirement raised to **8.3+** (aligns with WordPress recommended version)
+- Minimum WordPress requirement raised to **7.0+** (required for AI Client and Abilities API)
 - Admin pattern catalog heading updated to show filtered count vs. total
 - Category display in pattern table strips namespace prefix generically (works with any theme namespace)
 - Error message for missing valid patterns is no longer Elayne-specific
+- `composer.lock` now tracked for reproducible installs; platform pinned to PHP 8.3
 
 ## [0.3.2] - 2026-05-24
 
