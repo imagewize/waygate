@@ -137,11 +137,17 @@ SYSTEM;
 			return [ 'error' => $post_id->get_error_message() ];
 		}
 
+		$reasoning = $data['reasoning'] ?? '';
+
+		update_post_meta( $post_id, '_waygate_reasoning', $reasoning );
+		update_post_meta( $post_id, '_waygate_patterns', wp_json_encode( $data['patterns'] ) );
+		update_post_meta( $post_id, '_waygate_generated_at', current_time( 'mysql' ) );
+
 		return [
 			'title'         => $data['title'] ?? $description,
 			'patterns'      => $data['patterns'],
 			'pattern_count' => count( $data['patterns'] ),
-			'reasoning'     => $data['reasoning'] ?? '',
+			'reasoning'     => $reasoning,
 			'edit_url'      => get_edit_post_link( $post_id, 'raw' ),
 			'view_url'      => get_permalink( $post_id ),
 		];
