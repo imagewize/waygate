@@ -24,7 +24,7 @@ find . -name "*.php" -not -path "*/vendor/*" -exec php -l {} \;
 
 **Run PHP CodeSniffer:**
 ```bash
-vendor/bin/phpcs --standard=WordPress includes/ waygate.php
+vendor/bin/phpcs
 ```
 
 **Run PHPUnit:**
@@ -38,28 +38,28 @@ All classes live in `includes/` with PSR-4 autoloading (`Imagewize\Waygate` → 
 
 ### Class Responsibilities
 
-**`PatternLab`** (`includes/class-pattern-lab.php`) — The data layer. Queries WordPress's registered block patterns to extract those belonging to the active Elayne theme, returning structured metadata (slug, title, description, categories, keywords). Also handles composing `wp:pattern` blocks into a page and calling `wp_insert_post`.
+**`Pattern_Lab`** (`includes/class-pattern-lab.php`) — The data layer. Queries WordPress's registered block patterns to extract those belonging to the active Elayne theme, returning structured metadata (slug, title, description, categories, keywords). Also handles composing `wp:pattern` blocks into a page and calling `wp_insert_post`.
 
-**`AbilitiesApi`** (`includes/class-abilities-api.php`) — Registers two WordPress Abilities (WP 7.0+ feature):
+**`Abilities_API`** (`includes/class-abilities-api.php`) — Registers two WordPress Abilities (WP 7.0+ feature):
 - `elayne/list-patterns` — lists available patterns, optionally filtered by category; requires `edit_posts`
 - `elayne/create-page` — creates a draft page from an ordered pattern slug list; requires `publish_pages`
 
 Each ability has a JSON input/output schema for capability validation.
 
-**`AiIntegration`** (`includes/class-ai-integration.php`) — Orchestrates AI page generation. Registers a Mistral provider with the WP AI Client registry, then in `generate_page()` builds a prompt from all available patterns, sends it to the AI (with fallback chain: Mistral → Claude → OpenAI → Gemini), parses the JSON response, and delegates to `PatternLab::create_page()`. Enforces layout constraints: 3–7 patterns, hero first, CTA last, no consecutive grid patterns.
+**`AI_Integration`** (`includes/class-ai-integration.php`) — Orchestrates AI page generation. Registers a Mistral provider with the WP AI Client registry, then in `generate_page()` builds a prompt from all available patterns, sends it to the AI (with fallback chain: Mistral → Claude → OpenAI → Gemini), parses the JSON response, and delegates to `Pattern_Lab::create_page()`. Enforces layout constraints: 3–7 patterns, hero first, CTA last, no consecutive grid patterns.
 
 **`Admin`** (`includes/class-admin.php`) — WordPress admin UI at **Tools → Waygate**. Renders status indicators (WP AI Client, Abilities API, Mistral provider, Elayne patterns), the AI generation form, and a searchable pattern catalog. Handles POST form submission with nonce verification and displays success/error notices.
 
 ### Initialization Order
 
 ```
-plugins_loaded → PatternLab::init()
-             → AiIntegration::init()
-             → AbilitiesApi::init()
+plugins_loaded → Pattern_Lab::init()
+             → AI_Integration::init()
+             → Abilities_API::init()
              → Admin::init()
 ```
 
-`PatternLab` must init first since the other classes depend on its pattern data.
+`Pattern_Lab` must init first since the other classes depend on its pattern data.
 
 ### External Dependencies (optional)
 

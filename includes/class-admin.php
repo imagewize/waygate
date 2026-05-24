@@ -1,59 +1,76 @@
 <?php
+/**
+ * WordPress admin UI for the Waygate plugin (Tools → Waygate).
+ *
+ * @package Imagewize\Waygate
+ */
 
 namespace Imagewize\Waygate;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Renders the Waygate admin page, handles form submission, and registers the meta box.
+ */
 class Admin {
 
+	/**
+	 * Registers admin menu and meta box hooks.
+	 */
 	public static function init(): void {
-		add_action( 'admin_menu', [ self::class, 'register_menu' ] );
-		add_action( 'add_meta_boxes', [ self::class, 'register_meta_box' ] );
+		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
+		add_action( 'add_meta_boxes', array( self::class, 'register_meta_box' ) );
 	}
 
+	/**
+	 * Registers the Tools → Waygate admin page.
+	 */
 	public static function register_menu(): void {
 		add_management_page(
 			'Waygate',
 			'Waygate',
 			'manage_options',
 			'waygate',
-			[ self::class, 'render_page' ]
+			array( self::class, 'render_page' )
 		);
 	}
 
+	/**
+	 * Renders the full Waygate admin page including status notices, AI form, and pattern catalog.
+	 */
 	public static function render_page(): void {
-		$ai_available      = function_exists( 'wp_ai_client_prompt' );
-		$text_gen_supported = AiIntegration::is_text_generation_supported();
-		$result            = null;
+		$ai_available       = function_exists( 'wp_ai_client_prompt' );
+		$text_gen_supported = AI_Integration::is_text_generation_supported();
+		$result             = null;
 
 		if (
 			isset( $_POST['waygate_action'] ) &&
-			$_POST['waygate_action'] === 'generate' &&
+			'generate' === $_POST['waygate_action'] &&
 			check_admin_referer( 'waygate_generate' )
 		) {
 			if ( ! current_user_can( 'publish_pages' ) ) {
-				$result = [ 'error' => 'You do not have permission to create pages.' ];
+				$result = array( 'error' => 'You do not have permission to create pages.' );
 			} elseif ( ! $text_gen_supported ) {
-				$result = [ 'error' => 'Text generation is not supported by the configured AI provider.' ];
+				$result = array( 'error' => 'Text generation is not supported by the configured AI provider.' );
 			} else {
 				$description = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
 
 				if ( empty( $description ) ) {
-					$result = [ 'error' => 'Please describe the page you want to create.' ];
+					$result = array( 'error' => 'Please describe the page you want to create.' );
 				} else {
-					$result = AiIntegration::generate_page( $description );
+					$result = AI_Integration::generate_page( $description );
 				}
 			}
 		}
 
-		$all_patterns = PatternLab::get_patterns();
+		$all_patterns = Pattern_Lab::get_patterns();
 		usort( $all_patterns, fn( $a, $b ) => strcmp( $a['slug'], $b['slug'] ) );
 
 		// Build unique category list (strip namespace prefix for display/filtering).
-		$all_categories = [];
+		$all_categories = array();
 		foreach ( $all_patterns as $p ) {
 			foreach ( $p['categories'] as $cat ) {
-				$parts                         = explode( '/', $cat );
+				$parts                           = explode( '/', $cat );
 				$all_categories[ end( $parts ) ] = true;
 			}
 		}
@@ -101,6 +118,20 @@ class Admin {
 
 					<table class="form-table" role="presentation">
 						<tr>
+							<th scope="row"><label for="waygate-template">Quick template</label></th>
+							<td>
+								<select id="waygate-template" onchange="waygateApplyTemplate(this)" style="max-width:400px">
+									<option value="">— Choose a starting template —</option>
+									<?php foreach ( AI_Integration::get_prompt_templates() as $tpl ) : ?>
+									<option value="<?php echo esc_attr( $tpl['prompt'] ); ?>">
+										<?php echo esc_html( $tpl['label'] ); ?> — <?php echo esc_html( $tpl['description'] ); ?>
+									</option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description">Optional. Selecting a template fills the description below — customize it before generating.</p>
+							</td>
+						</tr>
+						<tr>
 							<th scope="row"><label for="description">Page description</label></th>
 							<td>
 								<textarea
@@ -110,8 +141,8 @@ class Admin {
 									class="large-text"
 									placeholder="E.g.: A homepage for a luxury spa with hero, team, testimonials and booking CTA"
 									required
-								><?php echo esc_textarea( wp_unslash( $_POST['description'] ?? '' ) ); ?></textarea>
-								<p class="description">Be specific about industry, page type, and sections you need.</p>
+								><?php echo esc_textarea( sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) ) ); ?></textarea>
+								<p class="description">Be specific about industry, page type, and sections you need. Replace any <code>[placeholder]</code> text with your specifics.</p>
 							</td>
 						</tr>
 					</table>
@@ -119,6 +150,19 @@ class Admin {
 					<?php submit_button( 'Generate Page', 'primary', 'submit', false ); ?>
 				</form>
 			</div>
+			<script>
+			function waygateApplyTemplate( select ) {
+				if ( ! select.value ) return;
+				var textarea = document.getElementById( 'description' );
+				if ( textarea.value.trim() && ! window.confirm( 'Replace your current description with this template?' ) ) {
+					select.value = '';
+					return;
+				}
+				textarea.value = select.value;
+				select.value = '';
+				textarea.focus();
+			}
+			</script>
 			<?php endif; ?>
 
 			<div class="card" style="max-width:100%;padding:20px 24px">
@@ -181,6 +225,12 @@ class Admin {
 		<?php
 	}
 
+	/**
+	 * Renders the status indicator notices at the top of the admin page.
+	 *
+	 * @param bool $ai_available      Whether the WP AI Client function exists.
+	 * @param bool $text_gen_supported Whether the active provider supports text generation.
+	 */
 	private static function status_notices( bool $ai_available, bool $text_gen_supported ): void {
 		$abilities_available = function_exists( 'wp_register_ability' );
 		$mistral_available   = class_exists( 'SaarniLauri\AiProviderForMistral\Provider\ProviderForMistral' );
@@ -224,17 +274,25 @@ class Admin {
 			<div class="notice notice-success" style="margin:0;flex:1;min-width:180px;padding:8px 12px">
 				<strong>✓ Elayne Patterns</strong>
 				<span style="color:#666;font-size:12px;display:block">
-					<?php echo count( PatternLab::get_patterns() ); ?> patterns registered
+					<?php echo count( Pattern_Lab::get_patterns() ); ?> patterns registered
 				</span>
 			</div>
 		</div>
 		<?php
 	}
 
+	/**
+	 * Returns true when the site is running in development mode.
+	 */
 	private static function is_dev(): bool {
 		return defined( 'WP_ENV' ) && 'development' === WP_ENV;
 	}
 
+	/**
+	 * Renders a success or error notice after page generation.
+	 *
+	 * @param array $result Return value from AI_Integration::generate_page().
+	 */
 	private static function result_notice( array $result ): void {
 		if ( isset( $result['error'] ) ) {
 			echo '<div class="notice notice-error"><p><strong>Error:</strong> ' . esc_html( $result['error'] ) . '</p></div>';
@@ -264,17 +322,25 @@ class Admin {
 		<?php
 	}
 
+	/**
+	 * Registers the Waygate meta box on the page post type.
+	 */
 	public static function register_meta_box(): void {
 		add_meta_box(
 			'waygate-info',
 			'Waygate',
-			[ self::class, 'render_meta_box' ],
+			array( self::class, 'render_meta_box' ),
 			'page',
 			'side',
 			'low'
 		);
 	}
 
+	/**
+	 * Renders the Waygate meta box content showing AI reasoning and pattern list.
+	 *
+	 * @param \WP_Post $post The current post object.
+	 */
 	public static function render_meta_box( \WP_Post $post ): void {
 		$reasoning = get_post_meta( $post->ID, '_waygate_reasoning', true );
 
@@ -288,7 +354,7 @@ class Admin {
 		if ( self::is_dev() ) {
 			$patterns_json = get_post_meta( $post->ID, '_waygate_patterns', true );
 			$generated_at  = get_post_meta( $post->ID, '_waygate_generated_at', true );
-			$patterns      = $patterns_json ? json_decode( $patterns_json, true ) : [];
+			$patterns      = $patterns_json ? json_decode( $patterns_json, true ) : array();
 
 			if ( $generated_at ) {
 				echo '<p style="margin:0 0 6px;font-size:11px;color:#888"><strong>Generated:</strong> ' . esc_html( $generated_at ) . '</p>';

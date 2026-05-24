@@ -1,11 +1,22 @@
 <?php
+/**
+ * Pattern data layer: queries registered block patterns for the active theme.
+ *
+ * @package Imagewize\Waygate
+ */
 
 namespace Imagewize\Waygate;
 
 defined( 'ABSPATH' ) || exit;
 
-class PatternLab {
+/**
+ * Provides pattern discovery and page-assembly utilities.
+ */
+class Pattern_Lab {
 
+	/**
+	 * Registers hooks. No hooks needed at this level; called for consistency.
+	 */
 	public static function init(): void {
 		// Core class — no hooks needed at this level.
 	}
@@ -17,8 +28,8 @@ class PatternLab {
 	 */
 	public static function get_patterns(): array {
 		$all      = \WP_Block_Patterns_Registry::get_instance()->get_all_registered();
-		$prefixes = apply_filters( 'waygate_pattern_prefixes', [ 'elayne/' ] );
-		$patterns = [];
+		$prefixes = apply_filters( 'waygate_pattern_prefixes', array( 'elayne/' ) );
+		$patterns = array();
 
 		foreach ( $all as $p ) {
 			if ( empty( $p['slug'] ) ) {
@@ -37,13 +48,13 @@ class PatternLab {
 				continue;
 			}
 
-			$patterns[] = [
+			$patterns[] = array(
 				'slug'        => $p['slug'],
 				'title'       => $p['title'] ?? '',
 				'description' => $p['description'] ?? '',
-				'categories'  => $p['categories'] ?? [],
-				'keywords'    => $p['keywords'] ?? [],
-			];
+				'categories'  => $p['categories'] ?? array(),
+				'keywords'    => $p['keywords'] ?? array(),
+			);
 		}
 
 		return $patterns;
@@ -80,12 +91,12 @@ class PatternLab {
 		}
 
 		return wp_insert_post(
-			[
+			array(
 				'post_title'   => sanitize_text_field( $title ),
 				'post_content' => $content,
-				'post_status'  => in_array( $status, [ 'draft', 'publish' ], true ) ? $status : 'draft',
+				'post_status'  => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
 				'post_type'    => 'page',
-			],
+			),
 			true
 		);
 	}

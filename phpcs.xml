@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<ruleset name="Waygate">
+	<description>Waygate PHPCS configuration</description>
+
+	<file>includes/</file>
+	<file>waygate.php</file>
+
+	<rule ref="WordPress"/>
+</ruleset>

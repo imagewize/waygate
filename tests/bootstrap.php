@@ -22,6 +22,10 @@ function apply_filters( string $tag, mixed $value, mixed ...$args ): mixed {
 	return $value;
 }
 
+function remove_all_filters( string $tag ): void {
+	unset( $GLOBALS['wp_filters'][ $tag ] );
+}
+
 function sanitize_text_field( string $str ): string {
 	return trim( strip_tags( $str ) );
 }

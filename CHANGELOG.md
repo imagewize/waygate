@@ -5,6 +5,20 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-24
+
+### Added
+- Six built-in prompt templates (Homepage, About, Services, Contact, Landing Page, Portfolio) in `AI_Integration::get_prompt_templates()`; filterable via the `waygate_prompt_templates` hook so third-party themes/plugins can add or remove templates
+- **Quick Template** dropdown in the admin AI generation form — selecting a template pre-fills the description textarea; a confirmation dialog fires when the textarea already has content
+- `[placeholder]` substitution note added to the description field hint
+- PHPUnit tests for `get_prompt_templates()` and the `waygate_prompt_templates` filter
+- `phpcs.xml` PHP CodeSniffer configuration committed so `vendor/bin/phpcs` works without arguments
+
+### Changed
+- Renamed plugin classes to WordPress underscore convention: `Pattern_Lab`, `Abilities_API`, `AI_Integration` (previously `PatternLab`, `AbilitiesApi`, `AiIntegration`) to comply with WordPress coding standards and allow WordPress.org submission
+- Removed `WordPress.Files.FileName.InvalidClassFileName` PHPCS exclusion from `phpcs.xml` — the renamed classes now pass the sniff cleanly
+- All PHP files now pass WPCS coding standards (resolved via `phpcs.xml` ruleset)
+
 ## [0.5.0] - 2026-05-24
 
 ### Added

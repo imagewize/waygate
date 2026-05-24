@@ -2,7 +2,7 @@
 
 namespace Imagewize\Waygate\Tests\Unit;
 
-use Imagewize\Waygate\PatternLab;
+use Imagewize\Waygate\Pattern_Lab;
 use PHPUnit\Framework\TestCase;
 use WP_Block_Patterns_Registry;
 use WP_Error;
@@ -33,7 +33,7 @@ class PatternLabTest extends TestCase {
 		$this->register( 'elayne/hero', 'Hero' );
 		$this->register( 'othertheme/hero', 'Other Hero' );
 
-		$patterns = PatternLab::get_patterns();
+		$patterns = Pattern_Lab::get_patterns();
 
 		$this->assertCount( 1, $patterns );
 		$this->assertSame( 'elayne/hero', $patterns[0]['slug'] );
@@ -45,7 +45,7 @@ class PatternLabTest extends TestCase {
 
 		add_filter( 'waygate_pattern_prefixes', fn() => [ 'mytheme/' ] );
 
-		$patterns = PatternLab::get_patterns();
+		$patterns = Pattern_Lab::get_patterns();
 
 		$this->assertCount( 1, $patterns );
 		$this->assertSame( 'mytheme/hero', $patterns[0]['slug'] );
@@ -58,7 +58,7 @@ class PatternLabTest extends TestCase {
 
 		add_filter( 'waygate_pattern_prefixes', fn() => [ 'elayne/', 'mytheme/' ] );
 
-		$patterns = PatternLab::get_patterns();
+		$patterns = Pattern_Lab::get_patterns();
 		$slugs    = array_column( $patterns, 'slug' );
 
 		$this->assertCount( 2, $patterns );
@@ -69,13 +69,13 @@ class PatternLabTest extends TestCase {
 	public function test_get_patterns_excludes_entries_without_slug(): void {
 		WP_Block_Patterns_Registry::get_instance()->register( [ 'title' => 'No Slug' ] );
 
-		$this->assertCount( 0, PatternLab::get_patterns() );
+		$this->assertCount( 0, Pattern_Lab::get_patterns() );
 	}
 
 	public function test_get_patterns_returns_all_metadata_fields(): void {
 		$this->register( 'elayne/hero', 'Hero', [ 'elayne/header' ] );
 
-		$p = PatternLab::get_patterns()[0];
+		$p = Pattern_Lab::get_patterns()[0];
 
 		$this->assertArrayHasKey( 'slug', $p );
 		$this->assertArrayHasKey( 'title', $p );
@@ -87,7 +87,7 @@ class PatternLabTest extends TestCase {
 	// --- create_page() ---
 
 	public function test_create_page_returns_error_with_no_valid_patterns(): void {
-		$result = PatternLab::create_page( 'My Page', [ 'nonexistent/slug' ], 'draft' );
+		$result = Pattern_Lab::create_page( 'My Page', [ 'nonexistent/slug' ], 'draft' );
 
 		$this->assertInstanceOf( WP_Error::class, $result );
 		$this->assertSame( 'no_valid_patterns', $result->get_error_code() );
@@ -96,7 +96,7 @@ class PatternLabTest extends TestCase {
 	public function test_create_page_skips_slugs_with_invalid_format(): void {
 		$this->register( 'elayne/hero', 'Hero' );
 
-		$result = PatternLab::create_page( 'My Page', [ 'elayne/hero', '../bad', 'noslash' ], 'draft' );
+		$result = Pattern_Lab::create_page( 'My Page', [ 'elayne/hero', '../bad', 'noslash' ], 'draft' );
 
 		$this->assertIsInt( $result );
 	}
@@ -105,13 +105,13 @@ class PatternLabTest extends TestCase {
 		$this->register( 'elayne/hero', 'Hero' );
 
 		// elayne/cta passes format check but is not registered
-		$result = PatternLab::create_page( 'My Page', [ 'elayne/hero', 'elayne/cta' ], 'draft' );
+		$result = Pattern_Lab::create_page( 'My Page', [ 'elayne/hero', 'elayne/cta' ], 'draft' );
 
 		$this->assertIsInt( $result );
 	}
 
 	public function test_create_page_returns_error_when_only_unregistered_slugs(): void {
-		$result = PatternLab::create_page( 'My Page', [ 'elayne/hero' ], 'draft' );
+		$result = Pattern_Lab::create_page( 'My Page', [ 'elayne/hero' ], 'draft' );
 
 		$this->assertInstanceOf( WP_Error::class, $result );
 	}
