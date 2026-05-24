@@ -30,7 +30,7 @@
       "../../plugins/{$name}/": ["type:wordpress-plugin"]
     },
     "archive": {
-      "exclude": ["docs/", "tests/", ".github/", "*.md", "!README.md"]
+      "exclude": ["docs/", "tests/", ".github/", ".vibe/", "*.md", "!README.md"]
     }
   },
   "config": {
