@@ -1,15 +1,76 @@
 <?php
+/**
+ * Orchestrates AI page generation via the WordPress AI Client.
+ *
+ * @package Imagewize\Waygate
+ */
 
 namespace Imagewize\Waygate;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Handles AI provider registration, feature detection, and page generation.
+ */
 class AiIntegration {
 
-	public static function init(): void {
-		add_action( 'init', [ self::class, 'register_mistral_provider' ], 6 );
+	/**
+	 * Built-in prompt templates, filterable via waygate_prompt_templates.
+	 *
+	 * @var array<string, array{label: string, description: string, prompt: string}>
+	 */
+	private static array $prompt_templates = array(
+		'homepage'  => array(
+			'label'       => 'Homepage',
+			'description' => 'Hero, features grid, testimonials, and CTA',
+			'prompt'      => 'Create a homepage for a [industry] business with a hero section, features grid, customer testimonials, and a call-to-action section',
+		),
+		'about'     => array(
+			'label'       => 'About Page',
+			'description' => 'Team bios, company story, and mission',
+			'prompt'      => 'Create an about page for a [industry] company with team member cards, company history, core values, and a contact form',
+		),
+		'services'  => array(
+			'label'       => 'Services Page',
+			'description' => 'Services listing with benefits and pricing CTA',
+			'prompt'      => 'Create a services page for a [industry] business showcasing our main services with descriptions, key benefits, and a pricing call-to-action',
+		),
+		'contact'   => array(
+			'label'       => 'Contact Page',
+			'description' => 'Contact form, location, and team info',
+			'prompt'      => 'Create a contact page with a contact form, office location details, a brief team introduction, and social media links',
+		),
+		'landing'   => array(
+			'label'       => 'Landing Page',
+			'description' => 'Conversion-focused with hero and strong CTA',
+			'prompt'      => 'Create a landing page for [product or service] with a compelling hero section, key benefits, social proof, and a strong call-to-action',
+		),
+		'portfolio' => array(
+			'label'       => 'Portfolio / Work',
+			'description' => 'Work showcase with case studies and CTA',
+			'prompt'      => 'Create a portfolio page for a [industry] studio showcasing selected projects, client logos, a brief process overview, and a hire-us CTA',
+		),
+	);
+
+	/**
+	 * Returns all prompt templates, allowing third parties to add their own via the filter.
+	 *
+	 * @return array<string, array{label: string, description: string, prompt: string}>
+	 */
+	public static function get_prompt_templates(): array {
+		return apply_filters( 'waygate_prompt_templates', self::$prompt_templates );
 	}
 
+	/**
+	 * Registers the Mistral provider on the init hook.
+	 */
+	public static function init(): void {
+		add_action( 'init', array( self::class, 'register_mistral_provider' ), 6 );
+	}
+
+	/**
+	 * Returns true when a configured AI provider supports text generation.
+	 */
 	public static function is_text_generation_supported(): bool {
 		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
 			return false;
@@ -57,25 +118,25 @@ class AiIntegration {
 			$pattern_detail .= "- {$p['slug']} | {$p['title']} | {$cats}\n";
 		}
 
-		$schema = [
+		$schema = array(
 			'type'       => 'object',
-			'properties' => [
-				'title'     => [
+			'properties' => array(
+				'title'     => array(
 					'type'        => 'string',
 					'description' => 'Suggested page title.',
-				],
-				'patterns'  => [
+				),
+				'patterns'  => array(
 					'type'        => 'array',
-					'items'       => [ 'type' => 'string' ],
+					'items'       => array( 'type' => 'string' ),
 					'description' => 'Ordered list of Elayne pattern slugs to assemble the page.',
-				],
-				'reasoning' => [
+				),
+				'reasoning' => array(
 					'type'        => 'string',
 					'description' => 'One sentence explaining pattern choices.',
-				],
-			],
-			'required'   => [ 'title', 'patterns', 'reasoning' ],
-		];
+				),
+			),
+			'required'   => array( 'title', 'patterns', 'reasoning' ),
+		);
 
 		$prompt = <<<PROMPT
 User request: {$description}
@@ -86,7 +147,7 @@ Available Elayne patterns (slug | title | categories):
 Select the best patterns to assemble a page for this request.
 PROMPT;
 
-		$system = <<<SYSTEM
+		$system = <<<'SYSTEM'
 You are a WordPress page assembler for the Elayne block theme.
 Select appropriate block patterns and return ONLY a JSON object.
 
@@ -114,27 +175,27 @@ SYSTEM;
 				)
 				->generate_text();
 		} catch ( \Throwable $e ) {
-			return [ 'error' => 'AI request failed: ' . $e->getMessage() ];
+			return array( 'error' => 'AI request failed: ' . $e->getMessage() );
 		}
 
 		if ( is_wp_error( $raw ) ) {
-			return [ 'error' => 'AI provider error: ' . $raw->get_error_message() ];
+			return array( 'error' => 'AI provider error: ' . $raw->get_error_message() );
 		}
 
 		if ( ! is_string( $raw ) ) {
-			return [ 'error' => 'AI returned an unexpected type: ' . gettype( $raw ) ];
+			return array( 'error' => 'AI returned an unexpected type: ' . gettype( $raw ) );
 		}
 
 		$data = json_decode( $raw, true );
 
 		if ( ! is_array( $data ) || empty( $data['patterns'] ) ) {
-			return [ 'error' => 'AI returned an unexpected response. Raw output: ' . esc_html( substr( $raw, 0, 300 ) ) ];
+			return array( 'error' => 'AI returned an unexpected response. Raw output: ' . esc_html( substr( $raw, 0, 300 ) ) );
 		}
 
 		$post_id = PatternLab::create_page( $data['title'] ?? $description, $data['patterns'], 'draft' );
 
 		if ( is_wp_error( $post_id ) ) {
-			return [ 'error' => $post_id->get_error_message() ];
+			return array( 'error' => $post_id->get_error_message() );
 		}
 
 		$reasoning = $data['reasoning'] ?? '';
@@ -143,13 +204,13 @@ SYSTEM;
 		update_post_meta( $post_id, '_waygate_patterns', wp_json_encode( $data['patterns'] ) );
 		update_post_meta( $post_id, '_waygate_generated_at', current_time( 'mysql' ) );
 
-		return [
+		return array(
 			'title'         => $data['title'] ?? $description,
 			'patterns'      => $data['patterns'],
 			'pattern_count' => count( $data['patterns'] ),
 			'reasoning'     => $reasoning,
 			'edit_url'      => get_edit_post_link( $post_id, 'raw' ),
 			'view_url'      => get_permalink( $post_id ),
-		];
+		);
 	}
 }
