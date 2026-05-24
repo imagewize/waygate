@@ -45,8 +45,39 @@ class Admin {
 			}
 		}
 
-		$patterns = PatternLab::get_patterns();
-		usort( $patterns, fn( $a, $b ) => strcmp( $a['slug'], $b['slug'] ) );
+		$all_patterns = PatternLab::get_patterns();
+		usort( $all_patterns, fn( $a, $b ) => strcmp( $a['slug'], $b['slug'] ) );
+
+		// Build unique category list (strip namespace prefix for display/filtering).
+		$all_categories = [];
+		foreach ( $all_patterns as $p ) {
+			foreach ( $p['categories'] as $cat ) {
+				$parts                         = explode( '/', $cat );
+				$all_categories[ end( $parts ) ] = true;
+			}
+		}
+		ksort( $all_categories );
+
+		$selected_category = isset( $_GET['waygate_category'] ) ? sanitize_key( $_GET['waygate_category'] ) : '';
+
+		if ( $selected_category && isset( $all_categories[ $selected_category ] ) ) {
+			$patterns = array_values(
+				array_filter(
+					$all_patterns,
+					function ( $p ) use ( $selected_category ) {
+						foreach ( $p['categories'] as $cat ) {
+							$parts = explode( '/', $cat );
+							if ( end( $parts ) === $selected_category ) {
+								return true;
+							}
+						}
+						return false;
+					}
+				)
+			);
+		} else {
+			$patterns = $all_patterns;
+		}
 
 		?>
 		<div class="wrap" style="max-width:900px">
@@ -91,10 +122,29 @@ class Admin {
 
 			<div class="card" style="max-width:100%;padding:20px 24px">
 				<h2 style="margin-top:0">
-					Available Elayne patterns
-					<span style="color:#888;font-weight:400">(<?php echo count( $patterns ); ?>)</span>
+					Available patterns
+					<span style="color:#888;font-weight:400">
+						(<?php echo count( $patterns ); ?><?php echo $selected_category ? ' filtered' : ''; ?> of <?php echo count( $all_patterns ); ?>)
+					</span>
 				</h2>
-				<p>These pattern slugs are registered and available for page assembly.</p>
+
+				<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+					<form method="get" style="margin:0;display:flex;align-items:center;gap:8px">
+						<input type="hidden" name="page" value="waygate">
+						<label for="waygate-category-filter" style="font-weight:600">Filter by category:</label>
+						<select id="waygate-category-filter" name="waygate_category" onchange="this.form.submit()">
+							<option value="">All categories</option>
+							<?php foreach ( array_keys( $all_categories ) as $cat ) : ?>
+							<option value="<?php echo esc_attr( $cat ); ?>" <?php selected( $selected_category, $cat ); ?>>
+								<?php echo esc_html( $cat ); ?>
+							</option>
+							<?php endforeach; ?>
+						</select>
+						<?php if ( $selected_category ) : ?>
+						<a href="<?php echo esc_url( admin_url( 'tools.php?page=waygate' ) ); ?>" class="button">Clear</a>
+						<?php endif; ?>
+					</form>
+				</div>
 
 				<table class="widefat striped" style="width:100%">
 					<thead>
@@ -110,7 +160,16 @@ class Admin {
 							<td><code style="font-size:12px"><?php echo esc_html( $p['slug'] ); ?></code></td>
 							<td><?php echo esc_html( $p['title'] ); ?></td>
 							<td style="color:#666;font-size:12px">
-								<?php echo esc_html( implode( ', ', array_map( fn( $c ) => str_replace( 'elayne/', '', $c ), $p['categories'] ) ) ); ?>
+								<?php
+								$cats = array_map(
+									function ( $c ) {
+										$parts = explode( '/', $c );
+										return end( $parts );
+									},
+									$p['categories']
+								);
+								echo esc_html( implode( ', ', $cats ) );
+								?>
 							</td>
 						</tr>
 						<?php endforeach; ?>
