@@ -54,15 +54,33 @@ composer require imagewize/waygate
 
 AI page generation requires a running AI provider. Waygate supports:
 
-**Mistral** (via Composer):
+**Mistral** — two installation paths, both read `MISTRAL_API_KEY` from the environment:
+
+_Bedrock / Composer (recommended):_
+
+```bash
+composer require wp-plugin/ai-provider-for-mistral
+```
+
+The plugin self-registers with the WP AI Client. Add `MISTRAL_API_KEY=your_key` to your site `.env`; Bedrock exposes it automatically.
+
+_Composer library (non-Bedrock):_
 
 ```bash
 composer require saarnilauri/ai-provider-for-mistral
 ```
 
-Then add `MISTRAL_API_KEY=your_key` to your site `.env`.
+Waygate registers this provider manually since the library distribution excludes `plugin.php`. Set `MISTRAL_API_KEY` as a server environment variable or via your host's environment config.
 
-**Claude / OpenAI / Gemini**: Install the relevant provider plugin via **Settings → Connectors** in WordPress 7.0+.
+**Claude (Anthropic)** — Bedrock / Composer:
+
+```bash
+composer require wp-plugin/ai-provider-for-anthropic
+```
+
+Add `ANTHROPIC_API_KEY=your_key` to your site `.env`.
+
+**OpenAI / Gemini**: Install the relevant provider plugin via **Settings → Connectors** in WordPress 7.0+.
 
 ---
 
