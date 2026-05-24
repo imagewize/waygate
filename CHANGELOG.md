@@ -5,6 +5,13 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-05-24
+
+### Documentation
+- Expanded AI provider configuration section in `README.md` to cover both Bedrock WP plugin path (`wp-plugin/ai-provider-for-mistral`, `wp-plugin/ai-provider-for-anthropic`) and standalone Composer library path for Mistral
+- Added Claude (Anthropic) as an explicitly documented provider with `ANTHROPIC_API_KEY` in `.env`
+- Clarified that Bedrock exposes `.env` variables automatically and that the WP plugin variants self-register with the WP AI Client
+
 ## [0.6.0] - 2026-05-24
 
 ### Added
