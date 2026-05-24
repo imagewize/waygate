@@ -4,7 +4,7 @@
 
 Waygate lets you assemble WordPress pages from block patterns — manually or via a natural-language AI prompt powered by the WordPress AI Client (WordPress 7.0+). Works with any block theme; [Elayne](https://github.com/imagewize/elayne) is the primary supported theme.
 
-> **Beta** — v0.4.0. Use on staging/development sites; not yet recommended for production.
+> **Beta** — v0.5.0. Use on staging/development sites; not yet recommended for production.
 
 ---
 
@@ -12,6 +12,8 @@ Waygate lets you assemble WordPress pages from block patterns — manually or vi
 
 - **Pattern catalog** — Browse registered block patterns with slug, title, and categories; filter by category
 - **AI page generation** — Describe the page you want; the AI picks patterns and creates a draft
+- **AI reasoning** — The AI's one-sentence explanation of its pattern choices is shown after generation and persisted as post meta on the created page
+- **Developer debug info** — When `WP_ENV=development`, the page editor sidebar and the generation notice also show the ordered pattern slugs and generation timestamp
 - **Feature detection** — AI form is hidden automatically when no provider supports text generation
 - **Abilities API** — Exposes `elayne/list-patterns` and `elayne/create-page` abilities for WP 7.0+
 - **Multi-provider** — Works with Mistral, Claude, OpenAI, or Gemini via WP AI Client

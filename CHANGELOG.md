@@ -5,6 +5,16 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-24
+
+### Added
+- AI reasoning and selected pattern slugs are now persisted as post meta (`_waygate_reasoning`, `_waygate_patterns`, `_waygate_generated_at`) on every Waygate-generated page
+- "Waygate" meta box on the page editor sidebar — always shows the AI reasoning sentence; shows generation timestamp and ordered pattern slug list when `WP_ENV=development`
+- Success notice in Tools → Waygate now shows the ordered pattern slugs when `WP_ENV=development`
+
+### Documentation
+- `README.md` updated with AI reasoning and developer debug info features; version badge bumped to 0.5.0
+
 ## [0.4.0] - 2026-05-24
 
 ### Added
