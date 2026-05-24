@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Provides pattern discovery and page-assembly utilities.
  */
-class PatternLab {
+class Pattern_Lab {
 
 	/**
 	 * Registers hooks. No hooks needed at this level; called for consistency.

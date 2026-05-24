@@ -8,12 +8,12 @@ Waygate is a standalone WordPress plugin (`imagewize/waygate`) that provides AI-
 
 - **Namespace:** `Imagewize\Waygate`
 - **Requires:** PHP 8.3+, WordPress 7.0+
-- **All classes** live in `includes/` with PSR-4 autoloading
+- **All classes** live in `includes/` with classmap autoloading
 
 ## Before Responding
 1. **Review CLAUDE.md** for:
    - Project architecture and file structure
-   - Class responsibilities (PatternLab, AbilitiesApi, AiIntegration, Admin)
+   - Class responsibilities (Pattern_Lab, Abilities_API, AI_Integration, Admin)
    - Initialization order
    - Code style and naming conventions
    - Git commit guidelines
@@ -42,7 +42,7 @@ find . -name "*.php" -not -path "*/vendor/*" -exec php -l {} \;
 
 **Run PHP CodeSniffer:**
 ```bash
-vendor/bin/phpcs --standard=WordPress includes/ waygate.php
+vendor/bin/phpcs
 ```
 
 **Run PHPUnit:**
@@ -51,20 +51,20 @@ vendor/bin/phpunit --configuration phpunit.xml
 ```
 
 ## Architecture
-- **PatternLab** (`includes/class-pattern-lab.php`) — Data layer for pattern querying and page composition
-- **AbilitiesApi** (`includes/class-abilities-api.php`) — Registers `elayne/list-patterns` and `elayne/create-page` abilities
-- **AiIntegration** (`includes/class-ai-integration.php`) — Orchestrates AI page generation with Mistral provider
+- **Pattern_Lab** (`includes/class-pattern-lab.php`) — Data layer for pattern querying and page composition
+- **Abilities_API** (`includes/class-abilities-api.php`) — Registers `elayne/list-patterns` and `elayne/create-page` abilities
+- **AI_Integration** (`includes/class-ai-integration.php`) — Orchestrates AI page generation with Mistral provider
 - **Admin** (`includes/class-admin.php`) — WordPress admin UI at **Tools → Waygate**
 
 **Initialization Order:**
 ```
-plugins_loaded → PatternLab::init()
-             → AiIntegration::init()
-             → AbilitiesApi::init()
+plugins_loaded → Pattern_Lab::init()
+             → AI_Integration::init()
+             → Abilities_API::init()
              → Admin::init()
 ```
 
-`PatternLab` must init first since other classes depend on its pattern data.
+`Pattern_Lab` must init first since other classes depend on its pattern data.
 
 ## Response Guidelines
 - Be concise and technical

@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Registers the elayne/list-patterns and elayne/create-page abilities.
  */
-class AbilitiesApi {
+class Abilities_API {
 
 	/**
 	 * Hooks into the Abilities API init action.
@@ -63,7 +63,7 @@ class AbilitiesApi {
 					),
 				),
 				'execute_callback'    => function ( array $params = array() ): array {
-					$patterns = PatternLab::get_patterns();
+					$patterns = Pattern_Lab::get_patterns();
 
 					if ( ! empty( $params['category'] ) ) {
 						$cat      = 'elayne/' . sanitize_key( $params['category'] );
@@ -109,7 +109,7 @@ class AbilitiesApi {
 					'required'   => array( 'title', 'patterns' ),
 				),
 				'execute_callback'    => function ( array $params ): array {
-					$result = PatternLab::create_page(
+					$result = Pattern_Lab::create_page(
 						$params['title'],
 						$params['patterns'],
 						$params['status'] ?? 'draft'

@@ -5,8 +5,5 @@
 	<file>includes/</file>
 	<file>waygate.php</file>
 
-	<rule ref="WordPress">
-		<!-- WordPress convention uses hyphens in file names for multi-word classes (e.g. class-pattern-lab.php) -->
-		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
-	</rule>
+	<rule ref="WordPress"/>
 </ruleset>

@@ -27,7 +27,7 @@ require_once WAYGATE_PLUGIN_DIR . 'includes/class-abilities-api.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-ai-integration.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-admin.php';
 
-add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\PatternLab', 'init' ) );
-add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\AiIntegration', 'init' ) );
-add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\AbilitiesApi', 'init' ) );
+add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Pattern_Lab', 'init' ) );
+add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\AI_Integration', 'init' ) );
+add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Abilities_API', 'init' ) );
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Admin', 'init' ) );

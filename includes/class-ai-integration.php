@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Handles AI provider registration, feature detection, and page generation.
  */
-class AiIntegration {
+class AI_Integration {
 
 	/**
 	 * Built-in prompt templates, filterable via waygate_prompt_templates.
@@ -110,7 +110,7 @@ class AiIntegration {
 	 * @return array{title:string,patterns:string[],pattern_count:int,reasoning:string,edit_url:string,view_url:string}|array{error:string}
 	 */
 	public static function generate_page( string $description ): array {
-		$patterns       = PatternLab::get_patterns();
+		$patterns       = Pattern_Lab::get_patterns();
 		$pattern_detail = '';
 
 		foreach ( $patterns as $p ) {
@@ -192,7 +192,7 @@ SYSTEM;
 			return array( 'error' => 'AI returned an unexpected response. Raw output: ' . esc_html( substr( $raw, 0, 300 ) ) );
 		}
 
-		$post_id = PatternLab::create_page( $data['title'] ?? $description, $data['patterns'], 'draft' );
+		$post_id = Pattern_Lab::create_page( $data['title'] ?? $description, $data['patterns'], 'draft' );
 
 		if ( is_wp_error( $post_id ) ) {
 			return array( 'error' => $post_id->get_error_message() );

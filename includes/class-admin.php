@@ -40,7 +40,7 @@ class Admin {
 	 */
 	public static function render_page(): void {
 		$ai_available       = function_exists( 'wp_ai_client_prompt' );
-		$text_gen_supported = AiIntegration::is_text_generation_supported();
+		$text_gen_supported = AI_Integration::is_text_generation_supported();
 		$result             = null;
 
 		if (
@@ -58,12 +58,12 @@ class Admin {
 				if ( empty( $description ) ) {
 					$result = array( 'error' => 'Please describe the page you want to create.' );
 				} else {
-					$result = AiIntegration::generate_page( $description );
+					$result = AI_Integration::generate_page( $description );
 				}
 			}
 		}
 
-		$all_patterns = PatternLab::get_patterns();
+		$all_patterns = Pattern_Lab::get_patterns();
 		usort( $all_patterns, fn( $a, $b ) => strcmp( $a['slug'], $b['slug'] ) );
 
 		// Build unique category list (strip namespace prefix for display/filtering).
@@ -122,7 +122,7 @@ class Admin {
 							<td>
 								<select id="waygate-template" onchange="waygateApplyTemplate(this)" style="max-width:400px">
 									<option value="">— Choose a starting template —</option>
-									<?php foreach ( AiIntegration::get_prompt_templates() as $tpl ) : ?>
+									<?php foreach ( AI_Integration::get_prompt_templates() as $tpl ) : ?>
 									<option value="<?php echo esc_attr( $tpl['prompt'] ); ?>">
 										<?php echo esc_html( $tpl['label'] ); ?> — <?php echo esc_html( $tpl['description'] ); ?>
 									</option>
@@ -274,7 +274,7 @@ class Admin {
 			<div class="notice notice-success" style="margin:0;flex:1;min-width:180px;padding:8px 12px">
 				<strong>✓ Elayne Patterns</strong>
 				<span style="color:#666;font-size:12px;display:block">
-					<?php echo count( PatternLab::get_patterns() ); ?> patterns registered
+					<?php echo count( Pattern_Lab::get_patterns() ); ?> patterns registered
 				</span>
 			</div>
 		</div>
@@ -291,7 +291,7 @@ class Admin {
 	/**
 	 * Renders a success or error notice after page generation.
 	 *
-	 * @param array $result Return value from AiIntegration::generate_page().
+	 * @param array $result Return value from AI_Integration::generate_page().
 	 */
 	private static function result_notice( array $result ): void {
 		if ( isset( $result['error'] ) ) {
