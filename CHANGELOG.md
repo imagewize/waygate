@@ -5,6 +5,14 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-05-24
+
+### Added
+- `docs/ROADMAP.md` with phased improvement plan covering WP 7.0 AI Client and Abilities API features
+
+### Changed
+- Exclude `docs/`, `tests/`, `.github/`, and non-README markdown from Composer archive so they are not shipped to end users via Packagist
+
 ## [0.3.1] - 2026-05-22
 
 ### Fixed
