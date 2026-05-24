@@ -10,7 +10,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: waygate
  * Domain Path: /languages
- * Requires at least: 6.5
+ * Requires at least: 7.0
  * Requires PHP: 8.3
  */
 
