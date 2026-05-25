@@ -1,7 +1,7 @@
 # Waygate Roadmap & Improvement Ideas
 
 > **Document Version**: 1.1.0  
-> **Last Updated**: 2026-05-24  
+> **Last Updated**: 2026-05-25  
 > **Status**: Draft
 
 This document outlines potential improvements and feature additions for Waygate, based on WordPress 7.0 AI Client and Abilities API capabilities.
@@ -143,6 +143,14 @@ Add a dropdown to filter patterns by category in the catalog table.
 
 ### Phase 2: Medium Effort ← **Next Up**
 
+#### 8. Add Prompt Templates ✅
+**File**: `includes/class-ai-integration.php`  
+**File**: `includes/class-admin.php`
+
+Built-in prompt templates with `waygate_prompt_templates` filter, and a "Quick template" dropdown in the admin UI that populates the description field (with confirmation if the field already has content).
+
+**Status**: Complete as of 2026-05-25.
+
 #### 5. Add Image Generation for Pattern Previews
 **New file**: `includes/class-image-generator.php`
 
@@ -177,8 +185,8 @@ class ImageGenerator {
 
 **Benefit**: Visual pattern selection, better UX.
 
-#### 6. Add REST API Endpoints for Remote Access
-**New file**: `includes/class-rest-api.php`
+#### 6. Add REST API Endpoints for Remote Access ✅
+**File**: `includes/class-rest-api.php`
 
 ```php
 class RestApi {
@@ -447,9 +455,9 @@ public static function track_pattern_usage( string $pattern_slug ): void {
 ### Recommended Order
 
 1. ~~Feature detection, ability annotations, generic prefixes — *Phase 1*~~ ✅ Done
-2. Prompt templates — *Phase 2* (1–2 days) ← **Start here**
-3. REST API endpoints — *Phase 2* (2–3 days)
-4. Client-side abilities for editor integration — *Phase 2* (2–3 days)
+2. ~~Prompt templates — *Phase 2* (1–2 days)~~ ✅ Done
+3. ~~REST API endpoints — *Phase 2* (2–3 days)~~ ✅ Done
+4. Client-side abilities for editor integration — *Phase 2* (2–3 days) ← **Start here**
 5. Image generation for previews — *Phase 2* (2–3 days)
 6. Batch page creation — *Phase 2* (1–2 days)
 7. Cost tracking, pattern popularity — *Phase 3* (2–3 days)
@@ -577,3 +585,4 @@ const abilities = getAbilities();
 |------|--------|--------|
 | 2026-05-22 | Initial draft | Created roadmap document |
 | 2026-05-24 | Jasper Frumau | Marked Phase 1 complete; Phase 2 is next |
+| 2026-05-25 | Jasper Frumau | Marked Prompt Templates (#8) complete; REST API is next |
