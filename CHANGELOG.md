@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Text personalization** checkbox in the admin form (checked by default); description reads "uncheck for faster generation with original placeholder text" so the speed trade-off is clear
 - `_waygate_personalized` post meta (`1`/`0`) stored on every generated page
 - Result notice now shows "Personalized to your topic" or "Original pattern placeholders" alongside title and pattern count
+- PHPUnit unit tests for `rewrite_pattern_texts()`, `get_pattern_content()`, and `create_page_from_content()` (18 new tests); `get_registered()` and `wp_kses_post()` stubs added to the test bootstrap
+
+### Security
+- AI-rewritten block content is now passed through `wp_kses_post()` in `create_page_from_content()` before insertion, stripping disallowed HTML (e.g. `<script>` tags) from AI responses
 
 ## [0.8.0] - 2026-05-25
 
