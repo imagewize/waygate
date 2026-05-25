@@ -84,6 +84,7 @@ fuzzy_threshold = 0.9
 permission = "ask"
 allowlist = [
     "cat",
+    "cd",
     "echo",
     "file",
     "find",

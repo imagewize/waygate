@@ -5,6 +5,22 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-05-25
+
+### Added
+- Themed text personalization: after the AI selects patterns, a second AI call rewrites all visible text content (headings, paragraphs, button labels) in each pattern's block markup to match the topic stated in the user's prompt; block comment markup, HTML tags, attributes, and CSS classes are preserved
+- `AI_Integration::rewrite_pattern_texts( $slugs, $theme )` — sends all selected patterns' raw block content in one batched AI call and returns a `slug → rewritten_content` map; falls back gracefully (returns empty array) on any AI or parse failure
+- `Pattern_Lab::get_pattern_content( $slug )` — fetches the raw block markup of a registered pattern from `WP_Block_Patterns_Registry`
+- `Pattern_Lab::create_page_from_content( $title, $block_contents, $status )` — creates a page from pre-rendered block strings instead of `wp:pattern` references; used when text personalization is active
+- `AI_Integration::generate_page()` now accepts a `bool $personalize_text = true` parameter; when `false`, the original single-call `wp:pattern` flow is used (faster, original placeholder text)
+- **Text personalization** checkbox in the admin form (checked by default); description reads "uncheck for faster generation with original placeholder text" so the speed trade-off is clear
+- `_waygate_personalized` post meta (`1`/`0`) stored on every generated page
+- Result notice now shows "Personalized to your topic" or "Original pattern placeholders" alongside title and pattern count
+- PHPUnit unit tests for `rewrite_pattern_texts()`, `get_pattern_content()`, and `create_page_from_content()` (18 new tests); `get_registered()` and `wp_kses_post()` stubs added to the test bootstrap
+
+### Security
+- AI-rewritten block content is now passed through `wp_kses_post()` in `create_page_from_content()` before insertion, stripping disallowed HTML (e.g. `<script>` tags) from AI responses
+
 ## [0.8.0] - 2026-05-25
 
 ### Added

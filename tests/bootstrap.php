@@ -30,6 +30,10 @@ function sanitize_text_field( string $str ): string {
 	return trim( strip_tags( $str ) );
 }
 
+function wp_kses_post( string $data ): string {
+	return preg_replace( '#<script\b[^>]*>[\s\S]*?</script>#i', '', $data );
+}
+
 function esc_attr( string $str ): string {
 	return htmlspecialchars( $str, ENT_QUOTES );
 }
@@ -147,6 +151,15 @@ class WP_Block_Patterns_Registry {
 
 	public function get_all_registered(): array {
 		return $this->patterns;
+	}
+
+	public function get_registered( string $slug ): ?array {
+		foreach ( $this->patterns as $pattern ) {
+			if ( ( $pattern['slug'] ?? '' ) === $slug ) {
+				return $pattern;
+			}
+		}
+		return null;
 	}
 
 	public function reset(): void {

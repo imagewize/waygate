@@ -4,8 +4,15 @@ namespace Imagewize\Waygate\Tests\Unit;
 
 use Imagewize\Waygate\AI_Integration;
 use PHPUnit\Framework\TestCase;
+use WP_Block_Patterns_Registry;
 
 class AiIntegrationTest extends TestCase {
+
+	protected function setUp(): void {
+		parent::setUp();
+		WP_Block_Patterns_Registry::get_instance()->reset();
+		$GLOBALS['wp_filters'] = [];
+	}
 
 	public function test_is_text_generation_not_supported_when_wp_client_missing(): void {
 		// wp_ai_client_prompt is not available in the unit-test environment
@@ -67,5 +74,42 @@ class AiIntegrationTest extends TestCase {
 	public function test_homepage_template_prompt_contains_placeholder(): void {
 		$templates = AI_Integration::get_prompt_templates();
 		$this->assertStringContainsString( '[industry]', $templates['homepage']['prompt'] );
+	}
+
+	// --- rewrite_pattern_texts() ---
+
+	public function test_rewrite_pattern_texts_returns_empty_array_for_no_slugs(): void {
+		$result = AI_Integration::rewrite_pattern_texts( [], 'coffee shop' );
+
+		$this->assertSame( [], $result );
+	}
+
+	public function test_rewrite_pattern_texts_returns_empty_array_when_patterns_have_no_content(): void {
+		// Slugs provided but patterns registered without a content field.
+		WP_Block_Patterns_Registry::get_instance()->register( [ 'slug' => 'elayne/hero', 'title' => 'Hero' ] );
+
+		$result = AI_Integration::rewrite_pattern_texts( [ 'elayne/hero' ], 'coffee shop' );
+
+		$this->assertSame( [], $result );
+	}
+
+	public function test_rewrite_pattern_texts_returns_empty_array_when_slugs_not_registered(): void {
+		$result = AI_Integration::rewrite_pattern_texts( [ 'elayne/nonexistent' ], 'coffee shop' );
+
+		$this->assertSame( [], $result );
+	}
+
+	public function test_rewrite_pattern_texts_returns_empty_array_when_ai_unavailable(): void {
+		// wp_ai_client_prompt doesn't exist in the test environment.
+		// The Error thrown by calling an undefined function is caught by \Throwable.
+		WP_Block_Patterns_Registry::get_instance()->register( [
+			'slug'    => 'elayne/hero',
+			'title'   => 'Hero',
+			'content' => '<!-- wp:heading --><h1>Hello</h1><!-- /wp:heading -->',
+		] );
+
+		$result = AI_Integration::rewrite_pattern_texts( [ 'elayne/hero' ], 'coffee shop' );
+
+		$this->assertSame( [], $result );
 	}
 }
