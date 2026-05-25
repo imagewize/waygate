@@ -27,6 +27,19 @@ class PatternLabTest extends TestCase {
 		);
 	}
 
+	private function register_with_content( string $slug, string $content ): void {
+		WP_Block_Patterns_Registry::get_instance()->register(
+			[
+				'slug'        => $slug,
+				'title'       => 'Test Pattern',
+				'description' => '',
+				'categories'  => [],
+				'keywords'    => [],
+				'content'     => $content,
+			]
+		);
+	}
+
 	// --- get_patterns() ---
 
 	public function test_get_patterns_returns_elayne_patterns_by_default(): void {
@@ -82,6 +95,67 @@ class PatternLabTest extends TestCase {
 		$this->assertArrayHasKey( 'description', $p );
 		$this->assertArrayHasKey( 'categories', $p );
 		$this->assertArrayHasKey( 'keywords', $p );
+	}
+
+	// --- get_pattern_content() ---
+
+	public function test_get_pattern_content_returns_empty_string_for_missing_slug(): void {
+		$this->assertSame( '', Pattern_Lab::get_pattern_content( 'elayne/nonexistent' ) );
+	}
+
+	public function test_get_pattern_content_returns_content_for_registered_pattern(): void {
+		$markup = '<!-- wp:heading --><h1>Hello</h1><!-- /wp:heading -->';
+		$this->register_with_content( 'elayne/hero', $markup );
+
+		$this->assertSame( $markup, Pattern_Lab::get_pattern_content( 'elayne/hero' ) );
+	}
+
+	public function test_get_pattern_content_returns_empty_string_when_content_field_absent(): void {
+		$this->register( 'elayne/hero' );
+
+		$this->assertSame( '', Pattern_Lab::get_pattern_content( 'elayne/hero' ) );
+	}
+
+	// --- create_page_from_content() ---
+
+	public function test_create_page_from_content_returns_error_for_empty_array(): void {
+		$result = Pattern_Lab::create_page_from_content( 'Test', [] );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'no_content', $result->get_error_code() );
+	}
+
+	public function test_create_page_from_content_returns_error_when_all_strings_empty(): void {
+		$result = Pattern_Lab::create_page_from_content( 'Test', [ '', '', '' ] );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'no_content', $result->get_error_code() );
+	}
+
+	public function test_create_page_from_content_returns_post_id_with_valid_content(): void {
+		$result = Pattern_Lab::create_page_from_content( 'Test', [ '<!-- wp:paragraph --><p>Hello</p><!-- /wp:paragraph -->' ] );
+
+		$this->assertIsInt( $result );
+		$this->assertGreaterThan( 0, $result );
+	}
+
+	public function test_create_page_from_content_filters_empty_strings_from_mixed_array(): void {
+		$result = Pattern_Lab::create_page_from_content( 'Test', [ '', '<p>Valid</p>', '' ] );
+
+		$this->assertIsInt( $result );
+	}
+
+	public function test_create_page_from_content_invalid_status_falls_back_to_draft(): void {
+		$result = Pattern_Lab::create_page_from_content( 'Test', [ '<p>Hello</p>' ], 'invalid_status' );
+
+		$this->assertIsInt( $result );
+	}
+
+	public function test_create_page_from_content_strips_script_tags_from_ai_content(): void {
+		$malicious = '<script>alert(1)</script><p>Safe content</p>';
+		$result    = Pattern_Lab::create_page_from_content( 'Test', [ $malicious ] );
+
+		$this->assertIsInt( $result );
 	}
 
 	// --- create_page() ---
