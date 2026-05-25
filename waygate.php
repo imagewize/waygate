@@ -26,8 +26,10 @@ require_once WAYGATE_PLUGIN_DIR . 'includes/class-pattern-lab.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-abilities-api.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-ai-integration.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-admin.php';
+require_once WAYGATE_PLUGIN_DIR . 'includes/class-rest-api.php';
 
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Pattern_Lab', 'init' ) );
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\AI_Integration', 'init' ) );
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Abilities_API', 'init' ) );
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Admin', 'init' ) );
+add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Rest_API', 'init' ) );
