@@ -4,7 +4,7 @@
 
 Waygate lets you assemble WordPress pages from block patterns — manually or via a natural-language AI prompt powered by the WordPress AI Client (WordPress 7.0+). Works with any block theme; [Elayne](https://github.com/imagewize/elayne) is the primary supported theme.
 
-> **Beta** — v0.6.0. Use on staging/development sites; not yet recommended for production.
+> **Beta** — v0.7.0. Use on staging/development sites; not yet recommended for production.
 
 ---
 
@@ -17,6 +17,7 @@ Waygate lets you assemble WordPress pages from block patterns — manually or vi
 - **Prompt templates** — Six built-in page templates (Homepage, About, Services, Contact, Landing Page, Portfolio) pre-fill the AI prompt; extend via the `waygate_prompt_templates` filter
 - **Feature detection** — AI form is hidden automatically when no provider supports text generation
 - **Abilities API** — Exposes `elayne/list-patterns` and `elayne/create-page` abilities for WP 7.0+
+- **REST API** — `GET /wp-json/waygate/v1/patterns` and `POST /wp-json/waygate/v1/pages` for headless and external tool integration
 - **Multi-provider** — Works with Mistral, Claude, OpenAI, or Gemini via WP AI Client
 - **Any block theme** — Default prefix is `elayne/`; extend via the `waygate_pattern_prefixes` filter
 
@@ -100,6 +101,37 @@ When WordPress 7.0's Abilities API is available, Waygate registers two abilities
 |---|---|
 | `elayne/list-patterns` | Returns patterns, optionally filtered by category |
 | `elayne/create-page` | Creates a draft page from an ordered list of pattern slugs |
+
+---
+
+## REST API
+
+Waygate exposes two REST endpoints under `/wp-json/waygate/v1/`:
+
+| Method | Endpoint | Permission | Description |
+|---|---|---|---|
+| `GET` | `/patterns` | `edit_posts` | List all registered patterns; optional `?category=hero` filter |
+| `POST` | `/pages` | `publish_pages` | Create a page from pattern slugs |
+
+**Example — list patterns filtered by category:**
+
+```bash
+curl -u admin:password https://example.com/wp-json/waygate/v1/patterns?category=hero
+```
+
+**Example — create a page:**
+
+```bash
+curl -u admin:password -X POST https://example.com/wp-json/waygate/v1/pages \
+  -H "Content-Type: application/json" \
+  -d '{"title":"My Page","patterns":["elayne/hero","elayne/features","elayne/cta"],"status":"draft"}'
+```
+
+Response:
+
+```json
+{ "page_id": 42, "edit_url": "https://example.com/wp-admin/post.php?post=42&action=edit", "view_url": "https://example.com/?page_id=42" }
+```
 
 ---
 
