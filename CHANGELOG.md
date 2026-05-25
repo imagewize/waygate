@@ -5,6 +5,13 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-05-25
+
+### Added
+- Client-side ability `waygate/insert-pattern` registered via `@wordpress/abilities`: inserts a `core/pattern` block at the current cursor position in the block editor, accepting a `slug` parameter
+- Ability category `waygate-editor` groups all Waygate block editor abilities
+- `Admin::enqueue_editor_abilities()` enqueues `@wordpress/core-abilities` (auto-loads server abilities into the editor store) and the `waygate-editor-abilities` ES module on `enqueue_block_editor_assets`; gracefully skips when `wp_enqueue_script_module()` is unavailable
+
 ## [0.7.0] - 2026-05-25
 
 ### Added

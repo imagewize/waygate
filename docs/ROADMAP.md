@@ -220,7 +220,7 @@ class RestApi {
 
 **Benefit**: Headless WordPress support, external tool integration.
 
-#### 7. Add Client-Side Abilities for Editor Integration
+#### 7. Add Client-Side Abilities for Editor Integration ✅
 **New file**: `assets/js/abilities.js`
 
 ```javascript
@@ -457,8 +457,8 @@ public static function track_pattern_usage( string $pattern_slug ): void {
 1. ~~Feature detection, ability annotations, generic prefixes — *Phase 1*~~ ✅ Done
 2. ~~Prompt templates — *Phase 2* (1–2 days)~~ ✅ Done
 3. ~~REST API endpoints — *Phase 2* (2–3 days)~~ ✅ Done
-4. Client-side abilities for editor integration — *Phase 2* (2–3 days) ← **Start here**
-5. Image generation for previews — *Phase 2* (2–3 days)
+4. ~~Client-side abilities for editor integration — *Phase 2* (2–3 days)~~ ✅ Done
+5. Image generation for previews — *Phase 2* (2–3 days) ← **Start here**
 6. Batch page creation — *Phase 2* (1–2 days)
 7. Cost tracking, pattern popularity — *Phase 3* (2–3 days)
 8. Advanced features based on user feedback — *Phase 3, speculative*
@@ -586,3 +586,4 @@ const abilities = getAbilities();
 | 2026-05-22 | Initial draft | Created roadmap document |
 | 2026-05-24 | Jasper Frumau | Marked Phase 1 complete; Phase 2 is next |
 | 2026-05-25 | Jasper Frumau | Marked Prompt Templates (#8) complete; REST API is next |
+| 2026-05-25 | Jasper Frumau | Marked Client-side abilities (#7) complete; Image generation is next |

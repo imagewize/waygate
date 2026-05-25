@@ -4,7 +4,7 @@
 
 Waygate lets you assemble WordPress pages from block patterns — manually or via a natural-language AI prompt powered by the WordPress AI Client (WordPress 7.0+). Works with any block theme; [Elayne](https://github.com/imagewize/elayne) is the primary supported theme.
 
-> **Beta** — v0.7.0. Use on staging/development sites; not yet recommended for production.
+> **Beta** — v0.8.0. Use on staging/development sites; not yet recommended for production.
 
 ---
 
@@ -16,7 +16,7 @@ Waygate lets you assemble WordPress pages from block patterns — manually or vi
 - **Developer debug info** — When `WP_ENV=development`, the page editor sidebar and the generation notice also show the ordered pattern slugs and generation timestamp
 - **Prompt templates** — Six built-in page templates (Homepage, About, Services, Contact, Landing Page, Portfolio) pre-fill the AI prompt; extend via the `waygate_prompt_templates` filter
 - **Feature detection** — AI form is hidden automatically when no provider supports text generation
-- **Abilities API** — Exposes `elayne/list-patterns` and `elayne/create-page` abilities for WP 7.0+
+- **Abilities API** — Exposes `elayne/list-patterns` and `elayne/create-page` server abilities plus a `waygate/insert-pattern` client-side ability for the block editor (WP 7.0+)
 - **REST API** — `GET /wp-json/waygate/v1/patterns` and `POST /wp-json/waygate/v1/pages` for headless and external tool integration
 - **Multi-provider** — Works with Mistral, Claude, OpenAI, or Gemini via WP AI Client
 - **Any block theme** — Default prefix is `elayne/`; extend via the `waygate_pattern_prefixes` filter
@@ -95,12 +95,15 @@ Waygate registers this provider manually since the library distribution excludes
 
 ## Abilities API (WordPress 7.0+)
 
-When WordPress 7.0's Abilities API is available, Waygate registers two abilities:
+When WordPress 7.0's Abilities API is available, Waygate registers three abilities:
 
-| Ability | Description |
-|---|---|
-| `elayne/list-patterns` | Returns patterns, optionally filtered by category |
-| `elayne/create-page` | Creates a draft page from an ordered list of pattern slugs |
+| Ability | Type | Description |
+|---|---|---|
+| `elayne/list-patterns` | Server | Returns patterns, optionally filtered by category |
+| `elayne/create-page` | Server | Creates a draft page from an ordered list of pattern slugs |
+| `waygate/insert-pattern` | Client (editor) | Inserts a pattern block at the current cursor position in the block editor |
+
+The client-side ability is registered via `@wordpress/abilities` and is available whenever the block editor is open. Pass a `slug` parameter (e.g. `"elayne/hero-centered"`) to insert any registered pattern.
 
 ---
 
