@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.0] - 2026-05-25
 
 ### Added
-- REST API endpoints under `waygate/v1`: `GET /patterns` (requires `edit_posts`) lists all registered patterns with optional `?category=` filter; `POST /pages` (requires `publish_pages`) creates a page from an ordered pattern slug list and returns `page_id`, `edit_url`, and `view_url`
+- REST API endpoints under `waygate/v1`: `GET /patterns` (requires `edit_posts`) lists all registered patterns with optional `?category=` filter; `POST /pages` (requires `publish_pages`) creates a draft page from an ordered pattern slug list and returns `page_id`, `edit_url`, and `view_url`
+- Per-user rate limiting on `POST /wp-json/waygate/v1/pages`: maximum 10 requests per 60-second window per user; returns `429` when exceeded; limit is filterable via `waygate_rate_limit`
+- `POST /pages` always creates pages as `draft`; the `status` parameter has been removed to prevent accidental publishing via the API
 - Failed page creation via the REST API returns a `422` status code with the underlying error message
-- PHPUnit tests for both REST endpoints covering route registration, category filtering, success response shape, and error handling (14 new tests, 86 total assertions)
-- REST bootstrap stubs (`WP_REST_Request`, `WP_REST_Response`, `WP_REST_Server`, `rest_ensure_response`, `register_rest_route`) added to the unit test bootstrap
+- PHPUnit tests for both REST endpoints and the rate limiter (19 new tests, 91 total assertions)
+- REST bootstrap stubs (`WP_REST_Request`, `WP_REST_Response`, `WP_REST_Server`, `rest_ensure_response`, `register_rest_route`, transient helpers) added to the unit test bootstrap
 
 ## [0.6.2] - 2026-05-24
 

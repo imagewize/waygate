@@ -111,7 +111,7 @@ Waygate exposes two REST endpoints under `/wp-json/waygate/v1/`:
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
 | `GET` | `/patterns` | `edit_posts` | List all registered patterns; optional `?category=hero` filter |
-| `POST` | `/pages` | `publish_pages` | Create a page from pattern slugs |
+| `POST` | `/pages` | `publish_pages` | Create a **draft** page from pattern slugs (max 10 req/min per user) |
 
 **Example — list patterns filtered by category:**
 
