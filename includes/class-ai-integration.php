@@ -62,6 +62,23 @@ class AI_Integration {
 	}
 
 	/**
+	 * Returns the ordered model preference list used for all AI calls.
+	 *
+	 * @return string[]
+	 */
+	private static function get_model_preferences(): array {
+		return array(
+			'mistral-large-latest',
+			'mistral-small-latest',
+			'claude-sonnet-4-6',
+			'claude-opus-4-6',
+			'claude-haiku-4-5',
+			'gpt-4.1',
+			'gemini-2.0-flash',
+		);
+	}
+
+	/**
 	 * Registers the Mistral provider on the init hook.
 	 */
 	public static function init(): void {
@@ -168,15 +185,7 @@ SYSTEM;
 			$raw = wp_ai_client_prompt( $prompt )
 				->using_system_instruction( $system )
 				->as_json_response( $schema )
-				->using_model_preference(
-					'mistral-large-latest',
-					'mistral-small-latest',
-					'claude-sonnet-4-6',
-					'claude-opus-4-6',
-					'claude-haiku-4-5',
-					'gpt-4.1',
-					'gemini-2.0-flash'
-				)
+				->using_model_preference( ...self::get_model_preferences() )
 				->generate_text();
 		} catch ( \Throwable ) {
 			return array();
@@ -253,15 +262,7 @@ SYSTEM;
 			$raw = wp_ai_client_prompt( $prompt )
 				->using_system_instruction( $system )
 				->as_json_response( $schema )
-				->using_model_preference(
-					'mistral-large-latest',
-					'mistral-small-latest',
-					'claude-sonnet-4-6',
-					'claude-opus-4-6',
-					'claude-haiku-4-5',
-					'gpt-4.1',
-					'gemini-2.0-flash'
-				)
+				->using_model_preference( ...self::get_model_preferences() )
 				->generate_text();
 		} catch ( \Throwable $e ) {
 			return array( 'error' => 'AI request failed: ' . $e->getMessage() );

@@ -82,7 +82,8 @@ class Pattern_Lab {
 	 * @return int|\WP_Error Post ID on success, WP_Error on failure.
 	 */
 	public static function create_page_from_content( string $title, array $block_contents, string $status = 'draft' ) {
-		$content = implode( "\n\n", array_filter( $block_contents ) );
+		$sanitized = array_map( 'wp_kses_post', array_filter( $block_contents ) );
+		$content   = implode( "\n\n", $sanitized );
 
 		if ( empty( $content ) ) {
 			return new \WP_Error( 'no_content', 'No block content was provided.' );
