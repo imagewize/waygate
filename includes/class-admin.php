@@ -20,6 +20,27 @@ class Admin {
 	public static function init(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
 		add_action( 'add_meta_boxes', array( self::class, 'register_meta_box' ) );
+		add_action( 'enqueue_block_editor_assets', array( self::class, 'enqueue_editor_abilities' ) );
+	}
+
+	/**
+	 * Enqueues the Waygate client-side abilities script module for the block editor.
+	 */
+	public static function enqueue_editor_abilities(): void {
+		if ( ! function_exists( 'wp_enqueue_script_module' ) ) {
+			return;
+		}
+
+		wp_enqueue_script_module( '@wordpress/core-abilities' );
+
+		wp_register_script_module(
+			'waygate-editor-abilities',
+			WAYGATE_PLUGIN_URL . 'assets/js/abilities.js',
+			array( '@wordpress/abilities' ),
+			WAYGATE_VERSION
+		);
+
+		wp_enqueue_script_module( 'waygate-editor-abilities' );
 	}
 
 	/**
