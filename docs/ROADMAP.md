@@ -151,6 +151,19 @@ Built-in prompt templates with `waygate_prompt_templates` filter, and a "Quick t
 
 **Status**: Complete as of 2026-05-25.
 
+#### 10. Add Themed Text Personalization
+
+**File**: `includes/class-ai-integration.php`  
+**File**: `includes/class-pattern-lab.php`
+
+After the AI selects which patterns to use, a second AI call rewrites the visible text content inside each pattern's block markup (headings, paragraphs, button labels) to match the topic stated in the prompt. Block structure, HTML attributes, CSS classes, and `<!-- wp:... -->` comments are left untouched. The page is then stored with the customized block markup instead of `wp:pattern` references.
+
+**Admin UI**: Checkbox "Personalize text to match description" (checked by default). Unchecking skips the rewrite step and inserts patterns as `wp:pattern` references (faster, original placeholder text).
+
+**Benefit**: Generated pages look immediately on-topic rather than generic placeholder content — users can start editing real copy instead of lorem ipsum.
+
+**Status**: Complete as of 2026-05-25.
+
 #### 5. Add Image Generation for Pattern Previews
 **New file**: `includes/class-image-generator.php`
 
@@ -458,10 +471,11 @@ public static function track_pattern_usage( string $pattern_slug ): void {
 2. ~~Prompt templates — *Phase 2* (1–2 days)~~ ✅ Done
 3. ~~REST API endpoints — *Phase 2* (2–3 days)~~ ✅ Done
 4. ~~Client-side abilities for editor integration — *Phase 2* (2–3 days)~~ ✅ Done
-5. Image generation for previews — *Phase 2* (2–3 days) ← **Start here**
-6. Batch page creation — *Phase 2* (1–2 days)
-7. Cost tracking, pattern popularity — *Phase 3* (2–3 days)
-8. Advanced features based on user feedback — *Phase 3, speculative*
+5. ~~Themed text personalization — *Phase 2* (1–2 days)~~ ✅ Done
+6. Image generation for previews — *Phase 2* (2–3 days) ← **Start here**
+7. Batch page creation — *Phase 2* (1–2 days)
+8. Cost tracking, pattern popularity — *Phase 3* (2–3 days)
+9. Advanced features based on user feedback — *Phase 3, speculative*
 
 ### Quick Start — Phase 1 Complete ✅
 
@@ -587,3 +601,4 @@ const abilities = getAbilities();
 | 2026-05-24 | Jasper Frumau | Marked Phase 1 complete; Phase 2 is next |
 | 2026-05-25 | Jasper Frumau | Marked Prompt Templates (#8) complete; REST API is next |
 | 2026-05-25 | Jasper Frumau | Marked Client-side abilities (#7) complete; Image generation is next |
+| 2026-05-25 | Jasper Frumau | Added themed text personalization (#10) to Phase 2; marked complete |

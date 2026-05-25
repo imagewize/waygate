@@ -4,7 +4,7 @@
 
 Waygate lets you assemble WordPress pages from block patterns — manually or via a natural-language AI prompt powered by the WordPress AI Client (WordPress 7.0+). Works with any block theme; [Elayne](https://github.com/imagewize/elayne) is the primary supported theme.
 
-> **Beta** — v0.8.0. Use on staging/development sites; not yet recommended for production.
+> **Beta** — v0.9.0. Use on staging/development sites; not yet recommended for production.
 
 ---
 
@@ -12,6 +12,7 @@ Waygate lets you assemble WordPress pages from block patterns — manually or vi
 
 - **Pattern catalog** — Browse registered block patterns with slug, title, and categories; filter by category
 - **AI page generation** — Describe the page you want; the AI picks patterns and creates a draft
+- **Themed text personalization** — A second AI call rewrites all headings, paragraphs, and button labels inside the selected patterns to match your topic; uncheck the option for a faster single-call result with original placeholder text
 - **AI reasoning** — The AI's one-sentence explanation of its pattern choices is shown after generation and persisted as post meta on the created page
 - **Developer debug info** — When `WP_ENV=development`, the page editor sidebar and the generation notice also show the ordered pattern slugs and generation timestamp
 - **Prompt templates** — Six built-in page templates (Homepage, About, Services, Contact, Landing Page, Portfolio) pre-fill the AI prompt; extend via the `waygate_prompt_templates` filter
@@ -88,8 +89,10 @@ Waygate registers this provider manually since the library distribution excludes
 
 1. Go to **Tools → Waygate** in the WordPress admin
 2. Browse registered patterns in the catalog; use the category dropdown to filter
-3. Optionally type a page description and click **Generate Page** to create an AI-assembled draft
-4. Open the draft in the block editor, adjust as needed, and publish
+3. Optionally pick a **Quick template** to pre-fill the description, then customise it
+4. Check **Rewrite pattern text to match my description** (default: on) to have the AI personalize all headings, paragraphs, and button labels to your topic — uncheck for a faster single-call result with original placeholder text
+5. Click **Generate Page** to create an AI-assembled draft
+6. Open the draft in the block editor, adjust as needed, and publish
 
 ---
 
