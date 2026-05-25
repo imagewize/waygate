@@ -61,6 +61,45 @@ class Pattern_Lab {
 	}
 
 	/**
+	 * Return the raw block content of a registered pattern, or an empty string if not found.
+	 *
+	 * @param string $slug Pattern slug (e.g. "elayne/hero-split").
+	 * @return string Block HTML/comment markup.
+	 */
+	public static function get_pattern_content( string $slug ): string {
+		$pattern = \WP_Block_Patterns_Registry::get_instance()->get_registered( $slug );
+		return $pattern['content'] ?? '';
+	}
+
+	/**
+	 * Create a WordPress page from pre-rendered block content strings.
+	 *
+	 * Used when pattern text has been personalised by AI before page assembly.
+	 *
+	 * @param string   $title         Page title.
+	 * @param string[] $block_contents Ordered list of raw block markup strings.
+	 * @param string   $status        Post status ('draft' or 'publish').
+	 * @return int|\WP_Error Post ID on success, WP_Error on failure.
+	 */
+	public static function create_page_from_content( string $title, array $block_contents, string $status = 'draft' ) {
+		$content = implode( "\n\n", array_filter( $block_contents ) );
+
+		if ( empty( $content ) ) {
+			return new \WP_Error( 'no_content', 'No block content was provided.' );
+		}
+
+		return wp_insert_post(
+			array(
+				'post_title'   => sanitize_text_field( $title ),
+				'post_content' => $content,
+				'post_status'  => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
+				'post_type'    => 'page',
+			),
+			true
+		);
+	}
+
+	/**
 	 * Create a WordPress page from an ordered list of Elayne pattern slugs.
 	 *
 	 * @param string   $title         Page title.

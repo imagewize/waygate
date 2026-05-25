@@ -74,12 +74,13 @@ class Admin {
 			} elseif ( ! $text_gen_supported ) {
 				$result = array( 'error' => 'Text generation is not supported by the configured AI provider.' );
 			} else {
-				$description = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
+				$description      = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
+				$personalize_text = ! empty( $_POST['personalize_text'] );
 
 				if ( empty( $description ) ) {
 					$result = array( 'error' => 'Please describe the page you want to create.' );
 				} else {
-					$result = AI_Integration::generate_page( $description );
+					$result = AI_Integration::generate_page( $description, $personalize_text );
 				}
 			}
 		}
@@ -166,7 +167,22 @@ class Admin {
 								<p class="description">Be specific about industry, page type, and sections you need. Replace any <code>[placeholder]</code> text with your specifics.</p>
 							</td>
 						</tr>
-					</table>
+							<tr>
+								<th scope="row">Text personalization</th>
+								<td>
+									<label>
+										<input
+											type="checkbox"
+											name="personalize_text"
+											value="1"
+											<?php checked( empty( $_POST['waygate_action'] ) || ! empty( $_POST['personalize_text'] ) ); ?>
+										>
+										Rewrite pattern text to match my description
+									</label>
+									<p class="description">The AI will customize headings, paragraphs, and button labels to fit your topic. Adds a second AI call — uncheck for faster generation with original placeholder text.</p>
+								</td>
+							</tr>
+						</table>
 
 					<?php submit_button( 'Generate Page', 'primary', 'submit', false ); ?>
 				</form>
@@ -324,7 +340,8 @@ class Admin {
 			<p style="margin:0 0 8px"><strong>Page created successfully!</strong></p>
 			<p style="margin:0 0 6px">
 				<strong>Title:</strong> <?php echo esc_html( $result['title'] ); ?> &nbsp;|&nbsp;
-				<strong>Patterns used:</strong> <?php echo (int) $result['pattern_count']; ?>
+				<strong>Patterns used:</strong> <?php echo (int) $result['pattern_count']; ?> &nbsp;|&nbsp;
+				<strong>Text:</strong> <?php echo ! empty( $result['personalized'] ) ? 'Personalized to your topic' : 'Original pattern placeholders'; ?>
 			</p>
 			<p style="margin:0 0 6px;font-size:12px;color:#555">
 				<strong>AI reasoning:</strong> <?php echo esc_html( $result['reasoning'] ); ?>

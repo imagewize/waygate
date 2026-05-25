@@ -104,12 +104,101 @@ class AI_Integration {
 	}
 
 	/**
+	 * Rewrite visible text inside pattern block markup to match a given theme.
+	 *
+	 * Makes one AI call that receives all selected patterns' raw block content and returns
+	 * the same markup with headings, paragraphs, and button labels rewritten to be
+	 * on-topic. Block comments, HTML tags, attributes, and class names are preserved.
+	 *
+	 * @param string[] $slugs  Ordered list of validated pattern slugs.
+	 * @param string   $theme  The user's original page description (used as the theme).
+	 * @return array<string,string> Map of slug → rewritten block content. Empty on failure.
+	 */
+	public static function rewrite_pattern_texts( array $slugs, string $theme ): array {
+		$pattern_contents = array();
+
+		foreach ( $slugs as $slug ) {
+			$content = Pattern_Lab::get_pattern_content( $slug );
+			if ( '' !== $content ) {
+				$pattern_contents[ $slug ] = $content;
+			}
+		}
+
+		if ( empty( $pattern_contents ) ) {
+			return array();
+		}
+
+		$properties = array();
+		foreach ( array_keys( $pattern_contents ) as $slug ) {
+			$properties[ $slug ] = array( 'type' => 'string' );
+		}
+
+		$schema = array(
+			'type'       => 'object',
+			'properties' => $properties,
+			'required'   => array_keys( $properties ),
+		);
+
+		$patterns_block = '';
+		foreach ( $pattern_contents as $slug => $content ) {
+			$patterns_block .= "=== {$slug} ===\n{$content}\n\n";
+		}
+
+		$prompt = <<<PROMPT
+Theme/topic: {$theme}
+
+Rewrite the text content in the WordPress block patterns below to match this theme.
+
+{$patterns_block}
+PROMPT;
+
+		$system = <<<'SYSTEM'
+You are rewriting text content inside WordPress block patterns.
+
+Rules:
+- Keep ALL WordPress block comment markup (<!-- wp:... --> and <!-- /wp:... -->) EXACTLY as-is
+- Keep ALL HTML tags, attributes, class names, and IDs EXACTLY as-is
+- Only replace visible text content between opening and closing HTML tags
+- Make replacement text relevant and specific to the given theme/topic
+- Keep text length proportional to the original (do not add extra paragraphs)
+- Return a JSON object: keys are the pattern slugs (from the === slug === headers), values are the complete rewritten block content strings
+SYSTEM;
+
+		try {
+			$raw = wp_ai_client_prompt( $prompt )
+				->using_system_instruction( $system )
+				->as_json_response( $schema )
+				->using_model_preference(
+					'mistral-large-latest',
+					'mistral-small-latest',
+					'claude-sonnet-4-6',
+					'claude-opus-4-6',
+					'claude-haiku-4-5',
+					'gpt-4.1',
+					'gemini-2.0-flash'
+				)
+				->generate_text();
+		} catch ( \Throwable ) {
+			return array();
+		}
+
+		if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
+			return array();
+		}
+
+		$data = json_decode( $raw, true );
+		return is_array( $data ) ? $data : array();
+	}
+
+	/**
 	 * Ask the AI to select patterns and assemble a draft page.
 	 *
-	 * @param string $description Natural-language description of the desired page.
-	 * @return array{title:string,patterns:string[],pattern_count:int,reasoning:string,edit_url:string,view_url:string}|array{error:string}
+	 * @param string $description      Natural-language description of the desired page.
+	 * @param bool   $personalize_text When true, a second AI call rewrites the text content
+	 *                                 of each selected pattern to match the description's theme.
+	 * @return array{title:string,patterns:string[],pattern_count:int,reasoning:string,personalized:bool,edit_url:string,view_url:string}|array{error:string}
 	 */
-	public static function generate_page( string $description ): array {
+	public static function generate_page( string $description, bool $personalize_text = true ): array {
 		$patterns       = Pattern_Lab::get_patterns();
 		$pattern_detail = '';
 
@@ -192,7 +281,26 @@ SYSTEM;
 			return array( 'error' => 'AI returned an unexpected response. Raw output: ' . esc_html( substr( $raw, 0, 300 ) ) );
 		}
 
-		$post_id = Pattern_Lab::create_page( $data['title'] ?? $description, $data['patterns'], 'draft' );
+		$page_title   = $data['title'] ?? $description;
+		$slugs        = $data['patterns'];
+		$personalized = false;
+
+		if ( $personalize_text ) {
+			$rewritten = self::rewrite_pattern_texts( $slugs, $description );
+
+			if ( ! empty( $rewritten ) ) {
+				$block_contents = array();
+				foreach ( $slugs as $slug ) {
+					$block_contents[] = $rewritten[ $slug ] ?? Pattern_Lab::get_pattern_content( $slug );
+				}
+				$post_id      = Pattern_Lab::create_page_from_content( $page_title, $block_contents, 'draft' );
+				$personalized = true;
+			} else {
+				$post_id = Pattern_Lab::create_page( $page_title, $slugs, 'draft' );
+			}
+		} else {
+			$post_id = Pattern_Lab::create_page( $page_title, $slugs, 'draft' );
+		}
 
 		if ( is_wp_error( $post_id ) ) {
 			return array( 'error' => $post_id->get_error_message() );
@@ -201,14 +309,16 @@ SYSTEM;
 		$reasoning = $data['reasoning'] ?? '';
 
 		update_post_meta( $post_id, '_waygate_reasoning', $reasoning );
-		update_post_meta( $post_id, '_waygate_patterns', wp_json_encode( $data['patterns'] ) );
+		update_post_meta( $post_id, '_waygate_patterns', wp_json_encode( $slugs ) );
 		update_post_meta( $post_id, '_waygate_generated_at', current_time( 'mysql' ) );
+		update_post_meta( $post_id, '_waygate_personalized', $personalized ? '1' : '0' );
 
 		return array(
-			'title'         => $data['title'] ?? $description,
-			'patterns'      => $data['patterns'],
-			'pattern_count' => count( $data['patterns'] ),
+			'title'         => $page_title,
+			'patterns'      => $slugs,
+			'pattern_count' => count( $slugs ),
 			'reasoning'     => $reasoning,
+			'personalized'  => $personalized,
 			'edit_url'      => get_edit_post_link( $post_id, 'raw' ),
 			'view_url'      => get_permalink( $post_id ),
 		);
