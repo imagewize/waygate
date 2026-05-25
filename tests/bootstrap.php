@@ -46,6 +46,21 @@ function current_user_can( string $capability ): bool {
 	return true;
 }
 
+function get_current_user_id(): int {
+	return 1;
+}
+
+$GLOBALS['wp_transients'] = [];
+
+function get_transient( string $key ): mixed {
+	return $GLOBALS['wp_transients'][ $key ] ?? false;
+}
+
+function set_transient( string $key, mixed $value, int $expiration = 0 ): bool {
+	$GLOBALS['wp_transients'][ $key ] = $value;
+	return true;
+}
+
 function sanitize_key( string $key ): string {
 	return strtolower( preg_replace( '/[^a-z0-9_-]/', '', $key ) );
 }

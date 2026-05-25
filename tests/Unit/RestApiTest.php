@@ -15,6 +15,7 @@ class RestApiTest extends TestCase {
 		WP_Block_Patterns_Registry::get_instance()->reset();
 		$GLOBALS['wp_filters']     = [];
 		$GLOBALS['wp_rest_routes'] = [];
+		$GLOBALS['wp_transients']  = [];
 	}
 
 	private function register( string $slug, string $title = 'Test Pattern', array $categories = [] ): void {
@@ -108,17 +109,9 @@ class RestApiTest extends TestCase {
 	public function test_create_page_returns_page_id_on_success(): void {
 		$this->register( 'elayne/hero' );
 
-		$result = Rest_API::create_page(
-			$this->request(
-				[
-					'title'    => 'My Page',
-					'patterns' => [ 'elayne/hero' ],
-					'status'   => 'draft',
-				]
-			)
-		);
-
-		$data = $result->get_data();
+		$data = Rest_API::create_page(
+			$this->request( [ 'title' => 'My Page', 'patterns' => [ 'elayne/hero' ] ] )
+		)->get_data();
 
 		$this->assertArrayHasKey( 'page_id', $data );
 		$this->assertIsInt( $data['page_id'] );
@@ -127,17 +120,9 @@ class RestApiTest extends TestCase {
 	public function test_create_page_returns_edit_url_on_success(): void {
 		$this->register( 'elayne/hero' );
 
-		$result = Rest_API::create_page(
-			$this->request(
-				[
-					'title'    => 'My Page',
-					'patterns' => [ 'elayne/hero' ],
-					'status'   => 'draft',
-				]
-			)
-		);
-
-		$data = $result->get_data();
+		$data = Rest_API::create_page(
+			$this->request( [ 'title' => 'My Page', 'patterns' => [ 'elayne/hero' ] ] )
+		)->get_data();
 
 		$this->assertArrayHasKey( 'edit_url', $data );
 		$this->assertStringContainsString( 'action=edit', $data['edit_url'] );
@@ -146,17 +131,9 @@ class RestApiTest extends TestCase {
 	public function test_create_page_returns_view_url_on_success(): void {
 		$this->register( 'elayne/hero' );
 
-		$result = Rest_API::create_page(
-			$this->request(
-				[
-					'title'    => 'My Page',
-					'patterns' => [ 'elayne/hero' ],
-					'status'   => 'draft',
-				]
-			)
-		);
-
-		$data = $result->get_data();
+		$data = Rest_API::create_page(
+			$this->request( [ 'title' => 'My Page', 'patterns' => [ 'elayne/hero' ] ] )
+		)->get_data();
 
 		$this->assertArrayHasKey( 'view_url', $data );
 		$this->assertNotEmpty( $data['view_url'] );
@@ -164,13 +141,7 @@ class RestApiTest extends TestCase {
 
 	public function test_create_page_returns_wp_error_for_no_valid_patterns(): void {
 		$result = Rest_API::create_page(
-			$this->request(
-				[
-					'title'    => 'My Page',
-					'patterns' => [ 'nonexistent/slug' ],
-					'status'   => 'draft',
-				]
-			)
+			$this->request( [ 'title' => 'My Page', 'patterns' => [ 'nonexistent/slug' ] ] )
 		);
 
 		$this->assertInstanceOf( WP_Error::class, $result );
@@ -179,16 +150,47 @@ class RestApiTest extends TestCase {
 
 	public function test_create_page_error_carries_422_http_status(): void {
 		$result = Rest_API::create_page(
-			$this->request(
-				[
-					'title'    => 'My Page',
-					'patterns' => [ 'nonexistent/slug' ],
-					'status'   => 'draft',
-				]
-			)
+			$this->request( [ 'title' => 'My Page', 'patterns' => [ 'nonexistent/slug' ] ] )
 		);
 
 		$this->assertInstanceOf( WP_Error::class, $result );
 		$this->assertSame( 422, $result->get_error_data()['status'] );
+	}
+
+	// --- is_rate_limited() ---
+
+	public function test_is_rate_limited_returns_false_under_limit(): void {
+		$this->assertFalse( Rest_API::is_rate_limited() );
+	}
+
+	public function test_is_rate_limited_increments_transient_counter(): void {
+		Rest_API::is_rate_limited();
+		Rest_API::is_rate_limited();
+
+		$this->assertSame( 2, $GLOBALS['wp_transients']['waygate_rl_1'] );
+	}
+
+	public function test_is_rate_limited_returns_true_at_limit(): void {
+		$GLOBALS['wp_transients']['waygate_rl_1'] = 10;
+
+		$this->assertTrue( Rest_API::is_rate_limited() );
+	}
+
+	public function test_is_rate_limited_returns_true_above_limit(): void {
+		$GLOBALS['wp_transients']['waygate_rl_1'] = 99;
+
+		$this->assertTrue( Rest_API::is_rate_limited() );
+	}
+
+	public function test_rate_limit_is_filterable(): void {
+		add_filter( 'waygate_rate_limit', fn() => 2 );
+
+		Rest_API::is_rate_limited(); // count → 1
+		Rest_API::is_rate_limited(); // count → 2, now at limit
+		$result = Rest_API::is_rate_limited(); // should be blocked
+
+		remove_all_filters( 'waygate_rate_limit' );
+
+		$this->assertTrue( $result );
 	}
 }

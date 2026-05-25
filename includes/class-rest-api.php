@@ -14,7 +14,8 @@ defined( 'ABSPATH' ) || exit;
  */
 class Rest_API {
 
-	const NAMESPACE = 'waygate/v1';
+	const NAMESPACE  = 'waygate/v1';
+	const RATE_LIMIT = 10; // Max page-creation requests per user per 60 seconds.
 
 	/**
 	 * Registers the rest_api_init hook.
@@ -51,7 +52,19 @@ class Rest_API {
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => array( self::class, 'create_page' ),
-				'permission_callback' => fn() => current_user_can( 'publish_pages' ),
+				'permission_callback' => function () {
+					if ( ! current_user_can( 'publish_pages' ) ) {
+						return false;
+					}
+					if ( self::is_rate_limited() ) {
+						return new \WP_Error(
+							'rate_limited',
+							'Too many requests. Try again in a minute.',
+							array( 'status' => 429 )
+						);
+					}
+					return true;
+				},
 				'args'                => array(
 					'title'    => array(
 						'type'              => 'string',
@@ -64,13 +77,6 @@ class Rest_API {
 						'description' => 'Ordered list of pattern slugs.',
 						'required'    => true,
 						'items'       => array( 'type' => 'string' ),
-					),
-					'status'   => array(
-						'type'        => 'string',
-						'description' => 'Post status: "draft" or "publish".',
-						'required'    => false,
-						'default'     => 'draft',
-						'enum'        => array( 'draft', 'publish' ),
 					),
 				),
 			)
@@ -98,6 +104,23 @@ class Rest_API {
 	}
 
 	/**
+	 * Returns true if the current user has exceeded the page-creation rate limit.
+	 * Uses a per-user transient counter with a 60-second sliding window.
+	 */
+	public static function is_rate_limited(): bool {
+		$key   = 'waygate_rl_' . get_current_user_id();
+		$count = (int) get_transient( $key );
+		$limit = apply_filters( 'waygate_rate_limit', self::RATE_LIMIT );
+
+		if ( $count >= $limit ) {
+			return true;
+		}
+
+		set_transient( $key, $count + 1, 60 );
+		return false;
+	}
+
+	/**
 	 * POST /waygate/v1/pages
 	 *
 	 * @param \WP_REST_Request $request Incoming REST request.
@@ -107,7 +130,7 @@ class Rest_API {
 		$result = Pattern_Lab::create_page(
 			$request->get_param( 'title' ),
 			(array) $request->get_param( 'patterns' ),
-			$request->get_param( 'status' )
+			'draft'
 		);
 
 		if ( is_wp_error( $result ) ) {
