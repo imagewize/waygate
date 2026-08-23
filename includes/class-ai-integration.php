@@ -161,25 +161,18 @@ class AI_Integration {
 			$patterns_block .= "=== {$slug} ===\n{$content}\n\n";
 		}
 
-		$prompt = <<<PROMPT
-Theme/topic: {$theme}
+		$prompt = "Theme/topic: {$theme}\n\n"
+			. "Rewrite the text content in the WordPress block patterns below to match this theme.\n\n"
+			. $patterns_block;
 
-Rewrite the text content in the WordPress block patterns below to match this theme.
-
-{$patterns_block}
-PROMPT;
-
-		$system = <<<'SYSTEM'
-You are rewriting text content inside WordPress block patterns.
-
-Rules:
-- Keep ALL WordPress block comment markup (<!-- wp:... --> and <!-- /wp:... -->) EXACTLY as-is
-- Keep ALL HTML tags, attributes, class names, and IDs EXACTLY as-is
-- Only replace visible text content between opening and closing HTML tags
-- Make replacement text relevant and specific to the given theme/topic
-- Keep text length proportional to the original (do not add extra paragraphs)
-- Return a JSON object: keys are the pattern slugs (from the === slug === headers), values are the complete rewritten block content strings
-SYSTEM;
+		$system = "You are rewriting text content inside WordPress block patterns.\n\n"
+			. "Rules:\n"
+			. "- Keep ALL WordPress block comment markup (<!-- wp:... --> and <!-- /wp:... -->) EXACTLY as-is\n"
+			. "- Keep ALL HTML tags, attributes, class names, and IDs EXACTLY as-is\n"
+			. "- Only replace visible text content between opening and closing HTML tags\n"
+			. "- Make replacement text relevant and specific to the given theme/topic\n"
+			. "- Keep text length proportional to the original (do not add extra paragraphs)\n"
+			. '- Return a JSON object: keys are the pattern slugs (from the === slug === headers), values are the complete rewritten block content strings';
 
 		try {
 			$raw = wp_ai_client_prompt( $prompt )
@@ -236,27 +229,20 @@ SYSTEM;
 			'required'   => array( 'title', 'patterns', 'reasoning' ),
 		);
 
-		$prompt = <<<PROMPT
-User request: {$description}
+		$prompt = "User request: {$description}\n\n"
+			. "Available Elayne patterns (slug | title | categories):\n"
+			. "{$pattern_detail}\n"
+			. 'Select the best patterns to assemble a page for this request.';
 
-Available Elayne patterns (slug | title | categories):
-{$pattern_detail}
-
-Select the best patterns to assemble a page for this request.
-PROMPT;
-
-		$system = <<<'SYSTEM'
-You are a WordPress page assembler for the Elayne block theme.
-Select appropriate block patterns and return ONLY a JSON object.
-
-Rules:
-- Use between 3 and 7 patterns
-- Use only slugs from the provided list — no inventing slugs
-- Always start with a hero pattern (slug contains "hero") if one fits
-- Always end with a CTA or contact pattern if one fits
-- Avoid two consecutive grid/card patterns — interleave with stats or testimonials
-- Return a descriptive page title
-SYSTEM;
+		$system = "You are a WordPress page assembler for the Elayne block theme.\n"
+			. "Select appropriate block patterns and return ONLY a JSON object.\n\n"
+			. "Rules:\n"
+			. "- Use between 3 and 7 patterns\n"
+			. "- Use only slugs from the provided list — no inventing slugs\n"
+			. "- Always start with a hero pattern (slug contains \"hero\") if one fits\n"
+			. "- Always end with a CTA or contact pattern if one fits\n"
+			. "- Avoid two consecutive grid/card patterns — interleave with stats or testimonials\n"
+			. '- Return a descriptive page title';
 
 		try {
 			$raw = wp_ai_client_prompt( $prompt )
