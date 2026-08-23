@@ -9,8 +9,6 @@
 
 Waygate lets you assemble WordPress pages from block patterns — manually or via a natural-language AI prompt powered by the WordPress AI Client (WordPress 7.0+). Works with any block theme; [Elayne](https://github.com/imagewize/elayne) is the primary supported theme.
 
-> **Beta** — v0.9.0. Use on staging/development sites; not yet recommended for production.
-
 ---
 
 ## Features
