@@ -1,5 +1,10 @@
 # Waygate
 
+[![CI](https://github.com/imagewize/waygate/actions/workflows/ci.yml/badge.svg)](https://github.com/imagewize/waygate/actions/workflows/ci.yml)
+[![Total Downloads](https://img.shields.io/packagist/dt/imagewize/waygate.svg)](https://packagist.org/packages/imagewize/waygate)
+[![Latest Stable Version](https://img.shields.io/packagist/v/imagewize/waygate.svg)](https://packagist.org/packages/imagewize/waygate)
+[![License](https://img.shields.io/packagist/l/imagewize/waygate.svg)](https://packagist.org/packages/imagewize/waygate)
+
 **AI-Powered Pattern Page Builder for Block Themes**
 
 Waygate lets you assemble WordPress pages from block patterns — manually or via a natural-language AI prompt powered by the WordPress AI Client (WordPress 7.0+). Works with any block theme; [Elayne](https://github.com/imagewize/elayne) is the primary supported theme.
