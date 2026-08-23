@@ -12,3 +12,4 @@ jobs:
           uses: 10up/wpcs-action@stable
           with:
             standard: 'phpcs.xml'
+            paths: 'includes/ waygate.php'
