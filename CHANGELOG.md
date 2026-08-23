@@ -5,6 +5,19 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-08-23
+
+### Added
+- `readme.txt` (WordPress.org format) alongside `README.md`
+- `wpcs.yml` CI workflow — runs WordPress Coding Standards checks on every pull request
+- `plugin-check.yml` CI workflow — runs the WordPress Plugin Check action against the `plugin_repo` category
+- `create-release.yml` CI workflow — builds a distribution zip and attaches it to GitHub Releases
+- `.distignore` — controls which files are excluded from the release zip
+
+### Changed
+- `ci.yml` now uses `actions/checkout@v7` (previously `v4`)
+- No longer marked Beta; considered stable for production use
+
 ## [0.9.0] - 2026-05-25
 
 ### Added

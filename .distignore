@@ -1,0 +1,66 @@
+# Directories (bare name drops the directory itself, /* drops its contents)
+.git
+.git/*
+.github
+.github/*
+.vibe
+.vibe/*
+vendor
+vendor/*
+
+# Development files
+.DS_Store
+.gitignore
+.gitkeep
+*.gitkeep
+.distignore
+.gitattributes
+.editorconfig
+phpcs.xml
+phpunit.xml
+.phpunit.result.cache
+composer.json
+composer.lock
+
+# Documentation and scripts
+docs
+docs/*
+CLAUDE.md
+*.sh
+create-pr.sh
+
+# Testing
+tests
+tests/*
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Editor files
+.vscode/*
+.idea/*
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS files
+Thumbs.db
+ehthumbs.db
+.Spotlight-V100
+.Trashes
+._*
+.DS_Store?
+
+__MACOSX
