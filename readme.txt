@@ -4,7 +4,7 @@ Tags: patterns, page-builder, ai, block-theme, gutenberg
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.9.0
+Stable tag: 1.0.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,10 @@ Yes. Waygate exposes REST endpoints (`GET /wp-json/waygate/v1/patterns`, `POST /
 
 == Changelog ==
 
+= 1.0.0 =
+* Changed: First stable release; no longer marked Beta
+* Added: WordPress.org `readme.txt`, WPCS check, Plugin Check, and release-zip CI workflows
+
 = 0.9.0 =
 * Added: Themed text personalization — a second AI call rewrites all visible text (headings, paragraphs, button labels) in each selected pattern to match the prompt's topic, with a checkbox to opt out for faster, original-placeholder generation
 * Added: `_waygate_personalized` post meta and a result notice showing whether text was personalized
@@ -92,6 +96,9 @@ limit WordPress.org enforces. The complete history is in CHANGELOG.md:
 https://github.com/imagewize/waygate/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.0.0 =
+First stable release. No breaking changes.
 
 = 0.9.0 =
 Adds optional AI text personalization for generated pages. No breaking changes.
