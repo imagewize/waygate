@@ -1,0 +1,43 @@
+name: Plugin Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  plugin-check:
+    runs-on: ubuntu-latest
+    name: Plugin Check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer, cs2pr
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install Composer dependencies
+        if: hashFiles('composer.json') != ''
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Create distribution directory
+        run: |
+          mkdir -p dist/waygate
+          rsync -rc --exclude-from=".distignore" ./ dist/waygate/ --delete --delete-excluded
+          ls -la dist/waygate/
+
+      - name: Run WordPress Plugin Check
+        uses: wordpress/plugin-check-action@v1.1.9
+        with:
+          build-dir: './dist/waygate'
+          categories: 'plugin_repo'
