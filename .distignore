@@ -1,12 +1,18 @@
-# Directories (need /* suffix for zip -x@ to exclude recursively)
+# Directories (bare name drops the directory itself, /* drops its contents)
+.git
 .git/*
+.github
 .github/*
+.vibe
 .vibe/*
+vendor
 vendor/*
 
 # Development files
 .DS_Store
 .gitignore
+.gitkeep
+*.gitkeep
 .distignore
 .gitattributes
 .editorconfig
@@ -17,12 +23,14 @@ composer.json
 composer.lock
 
 # Documentation and scripts
+docs
 docs/*
 CLAUDE.md
 *.sh
 create-pr.sh
 
 # Testing
+tests
 tests/*
 
 # Temporary files
