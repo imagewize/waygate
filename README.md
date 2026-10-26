@@ -23,6 +23,8 @@ Waygate lets you assemble WordPress pages from block patterns — manually or vi
 - **Abilities API** — Exposes `elayne/list-patterns` and `elayne/create-page` server abilities plus a `waygate/insert-pattern` client-side ability for the block editor (WP 7.0+)
 - **REST API** — `GET /wp-json/waygate/v1/patterns` and `POST /wp-json/waygate/v1/pages` for headless and external tool integration
 - **Multi-provider** — Works with Mistral, Claude, OpenAI, or Gemini via WP AI Client
+- **Vertical scoping** — Limit the AI to one vertical's patterns (e.g. legal), so a law-firm page doesn't get a spa hero; defaults to the active child theme's vertical
+- **WP-CLI** — `wp waygate build <map.json>` builds pages from a pattern map without AI; `wp waygate list` lists patterns by vertical
 - **Any block theme** — Default prefix is `elayne/`; extend via the `waygate_pattern_prefixes` filter
 
 ---
@@ -93,9 +95,43 @@ Waygate registers this provider manually since the library distribution excludes
 1. Go to **Tools → Waygate** in the WordPress admin
 2. Browse registered patterns in the catalog; use the category dropdown to filter
 3. Optionally pick a **Quick template** to pre-fill the description, then customise it
-4. Check **Rewrite pattern text to match my description** (default: on) to have the AI personalize all headings, paragraphs, and button labels to your topic — uncheck for a faster single-call result with original placeholder text
-5. Click **Generate Page** to create an AI-assembled draft
-6. Open the draft in the block editor, adjust as needed, and publish
+4. Pick a **Vertical** to limit the AI to that vertical's patterns (defaults to the active child theme's vertical, e.g. `legal` for Elayne Legal)
+5. Check **Rewrite pattern text to match my description** (default: on) to have the AI personalize all headings, paragraphs, and button labels to your topic — uncheck for a faster single-call result with original placeholder text
+6. Click **Generate Page** to create an AI-assembled draft
+7. Open the draft in the block editor, adjust as needed, and publish
+
+---
+
+## WP-CLI
+
+Build pages from patterns without AI, for example to rebuild a demo site after a theme change:
+
+```bash
+wp waygate build legal.json --dry-run
+wp waygate build legal.json
+```
+
+The map lists pages and their patterns in order. A page is matched by `id` or `slug`; a slug with no matching page creates a draft. `title`, `template` and `status` (`draft` or `publish`) are optional.
+
+```json
+{
+  "pages": [
+    { "id": 5, "patterns": ["elayne/legal-hero-form", "elayne/legal-departments", "elayne/legal-cta-strip"] },
+    { "slug": "about", "title": "About", "patterns": ["elayne/page-legal-about"] }
+  ]
+}
+```
+
+Content is stored as a fresh block-editor insert would store it: each pattern is inlined and nested `wp:pattern` references are expanded. Pass `--references` to store `wp:pattern` blocks instead. Unknown slugs fail that page and the command exits non-zero.
+
+List patterns to write a map:
+
+```bash
+wp waygate list --vertical=legal --sections
+wp waygate list --format=ids
+```
+
+`--sections` leaves out headers, footers, templates and full-page patterns.
 
 ---
 

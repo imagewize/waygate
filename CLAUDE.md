@@ -48,6 +48,8 @@ Each ability has a JSON input/output schema for capability validation.
 
 **`AI_Integration`** (`includes/class-ai-integration.php`) — Orchestrates AI page generation. Registers a Mistral provider with the WP AI Client registry, then in `generate_page()` builds a prompt from all available patterns, sends it to the AI (with fallback chain: Mistral → Claude → OpenAI → Gemini), parses the JSON response, and delegates to `Pattern_Lab::create_page()`. Enforces layout constraints: 3–7 patterns, hero first, CTA last, no consecutive grid patterns.
 
+**`CLI`** (`includes/class-cli.php`) — WP-CLI commands, loaded only when `WP_CLI` is defined. `wp waygate build <map.json>` builds pages from a JSON map of pattern slugs without AI (`--dry-run`, `--references`); `wp waygate list` lists patterns (`--vertical`, `--sections`). Map parsing (`CLI::parse_map()`) and content assembly (`Pattern_Lab::build_content()`) are static so they are unit-tested; the command methods only do I/O. Writes go through `wp_slash()`, because `wp_update_post()`/`wp_insert_post()` unslash their input and would strip backslashes from block JSON.
+
 **`Admin`** (`includes/class-admin.php`) — WordPress admin UI at **Tools → Waygate**. Renders status indicators (WP AI Client, Abilities API, Mistral provider, Elayne patterns), the AI generation form, and a searchable pattern catalog. Handles POST form submission with nonce verification and displays success/error notices.
 
 ### Initialization Order
