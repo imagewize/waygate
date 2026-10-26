@@ -173,6 +173,63 @@ class Pattern_Lab {
 	}
 
 	/**
+	 * Replace nested `wp:pattern` reference blocks with the referenced pattern's content.
+	 *
+	 * Mirrors what the block editor stores when a pattern is inserted. References to
+	 * unregistered slugs are left in place.
+	 *
+	 * @param string $content Block markup.
+	 * @param int    $depth   Remaining recursion depth, guards against self-referencing patterns.
+	 * @return string
+	 */
+	public static function expand_pattern_references( string $content, int $depth = 5 ): string {
+		if ( $depth <= 0 || ! str_contains( $content, '<!-- wp:pattern ' ) ) {
+			return $content;
+		}
+
+		return preg_replace_callback(
+			'#<!-- wp:pattern \{"slug":"([a-z0-9_-]+/[a-z0-9_-]+)"\} /-->#',
+			function ( array $m ) use ( $depth ): string {
+				$inner = self::get_pattern_content( $m[1] );
+				return '' === $inner ? $m[0] : self::expand_pattern_references( $inner, $depth - 1 );
+			},
+			$content
+		);
+	}
+
+	/**
+	 * Concatenate the content of an ordered list of registered patterns into page markup.
+	 *
+	 * @param string[] $slugs  Ordered pattern slugs. Each must be a registered pattern matching
+	 *                         the waygate_pattern_prefixes filter.
+	 * @param bool     $expand True to inline each pattern's content (nested references expanded),
+	 *                         false to emit `wp:pattern` reference blocks.
+	 * @return string|\WP_Error Block markup, or WP_Error naming the first unknown slug.
+	 */
+	public static function build_content( array $slugs, bool $expand = true ) {
+		$registered = array_column( self::get_patterns(), 'slug' );
+		$chunks     = array();
+
+		foreach ( $slugs as $slug ) {
+			if ( ! is_string( $slug ) || ! in_array( $slug, $registered, true ) ) {
+				return new \WP_Error( 'unknown_pattern', 'Pattern is not registered: ' . ( is_string( $slug ) ? $slug : gettype( $slug ) ) );
+			}
+
+			$chunks[] = $expand
+				? self::expand_pattern_references( self::get_pattern_content( $slug ) )
+				: '<!-- wp:pattern {"slug":"' . esc_attr( $slug ) . '"} /-->';
+		}
+
+		$content = implode( "\n\n", array_filter( array_map( 'trim', $chunks ) ) );
+
+		if ( '' === $content ) {
+			return new \WP_Error( 'no_content', 'The patterns produced no content.' );
+		}
+
+		return $content;
+	}
+
+	/**
 	 * Return the raw block content of a registered pattern, or an empty string if not found.
 	 *
 	 * @param string $slug Pattern slug (e.g. "elayne/hero-split").

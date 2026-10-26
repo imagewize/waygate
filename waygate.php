@@ -33,3 +33,8 @@ add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\AI_Integration', 'init
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Abilities_API', 'init' ) );
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Admin', 'init' ) );
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Rest_API', 'init' ) );
+
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once WAYGATE_PLUGIN_DIR . 'includes/class-cli.php';
+	WP_CLI::add_command( 'waygate', 'Imagewize\\Waygate\\CLI' );
+}
