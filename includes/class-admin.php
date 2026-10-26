@@ -76,11 +76,16 @@ class Admin {
 			} else {
 				$description      = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
 				$personalize_text = ! empty( $_POST['personalize_text'] );
+				$vertical         = sanitize_key( wp_unslash( $_POST['vertical'] ?? '' ) );
+
+				if ( '' !== $vertical && ! in_array( $vertical, Pattern_Lab::get_verticals(), true ) ) {
+					$vertical = '';
+				}
 
 				if ( empty( $description ) ) {
 					$result = array( 'error' => 'Please describe the page you want to create.' );
 				} else {
-					$result = AI_Integration::generate_page( $description, $personalize_text );
+					$result = AI_Integration::generate_page( $description, $personalize_text, $vertical );
 				}
 			}
 		}
@@ -165,6 +170,21 @@ class Admin {
 									required
 								><?php echo esc_textarea( sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) ) ); ?></textarea>
 								<p class="description">Be specific about industry, page type, and sections you need. Replace any <code>[placeholder]</code> text with your specifics.</p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="waygate-vertical">Vertical</label></th>
+							<td>
+								<?php $selected_vertical = isset( $_POST['vertical'] ) ? sanitize_key( wp_unslash( $_POST['vertical'] ) ) : Pattern_Lab::get_default_vertical(); ?>
+								<select id="waygate-vertical" name="vertical" style="max-width:400px">
+									<option value="">All patterns</option>
+									<?php foreach ( Pattern_Lab::get_verticals() as $vertical_slug ) : ?>
+									<option value="<?php echo esc_attr( $vertical_slug ); ?>" <?php selected( $selected_vertical, $vertical_slug ); ?>>
+										<?php echo esc_html( ucwords( str_replace( '-', ' ', $vertical_slug ) ) ); ?>
+									</option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description">Only offer this vertical's patterns to the AI, so a law-firm page doesn't get a spa hero. Defaults to the active child theme's vertical. Falls back to all patterns if the vertical has fewer than three sections.</p>
 							</td>
 						</tr>
 							<tr>

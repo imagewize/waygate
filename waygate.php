@@ -3,7 +3,7 @@
  * Plugin Name: Waygate
  * Plugin URI:  https://github.com/imagewize/waygate
  * Description: AI-powered pattern page builder for the Elayne block theme. Lists registered patterns, creates pages from pattern slugs, and integrates with WordPress AI Client for natural-language page generation.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Jasper Frumau
  * Author URI:  https://imagewize.com
  * License:     GPL-2.0-or-later
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WAYGATE_VERSION', '1.0.0' );
+define( 'WAYGATE_VERSION', '1.1.0' );
 define( 'WAYGATE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WAYGATE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -33,3 +33,8 @@ add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\AI_Integration', 'init
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Abilities_API', 'init' ) );
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Admin', 'init' ) );
 add_action( 'plugins_loaded', array( 'Imagewize\\Waygate\\Rest_API', 'init' ) );
+
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once WAYGATE_PLUGIN_DIR . 'includes/class-cli.php';
+	WP_CLI::add_command( 'waygate', 'Imagewize\\Waygate\\CLI' );
+}

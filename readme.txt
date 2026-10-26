@@ -4,7 +4,7 @@ Tags: patterns, page-builder, ai, block-theme, gutenberg
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,8 @@ Waygate lets you assemble WordPress pages from block patterns — manually or vi
 * **Abilities API** — Exposes `elayne/list-patterns` and `elayne/create-page` server abilities plus a `waygate/insert-pattern` client-side ability for the block editor (WordPress 7.0+)
 * **REST API** — `GET /wp-json/waygate/v1/patterns` and `POST /wp-json/waygate/v1/pages` for headless and external tool integration
 * **Multi-provider** — Works with Mistral, Claude, OpenAI, or Gemini via the WordPress AI Client
+* **Vertical scoping** — Limit the AI to one vertical's patterns (e.g. legal); defaults to the active child theme's vertical
+* **WP-CLI** — `wp waygate build <map.json>` builds pages from a pattern map without AI; `wp waygate list` lists patterns
 * **Any block theme** — Default prefix is `elayne/`; extend via the `waygate_pattern_prefixes` filter
 
 = Requirements =
@@ -69,6 +71,12 @@ Yes. Waygate exposes REST endpoints (`GET /wp-json/waygate/v1/patterns`, `POST /
 
 == Changelog ==
 
+= 1.1.0 =
+* Added: `wp waygate build <map.json>` builds pages from a JSON map of pattern slugs without AI, with `--dry-run` and `--references`; `wp waygate list` lists patterns by vertical or page sections
+* Added: Vertical select in the AI form, defaulting to the active child theme's vertical; `waygate_verticals` and `waygate_structural_categories` filters
+* Changed: The AI is only offered page sections (no headers, footers, templates or full-page patterns), sees pattern descriptions and keywords, and cannot place a slug it was not offered
+* Fixed: Backslashes in block markup were stripped from created pages; content is now slashed before `wp_insert_post()`
+
 = 1.0.0 =
 * Changed: First stable release; no longer marked Beta
 * Added: WordPress.org `readme.txt`, WPCS check, Plugin Check, and release-zip CI workflows
@@ -96,6 +104,9 @@ limit WordPress.org enforces. The complete history is in CHANGELOG.md:
 https://github.com/imagewize/waygate/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Adds WP-CLI build and list commands and vertical scoping for AI pages, and fixes stripped backslashes in created pages. No breaking changes.
 
 = 1.0.0 =
 First stable release. No breaking changes.

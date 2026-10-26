@@ -5,6 +5,24 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-26
+
+### Added
+- `wp waygate build <map.json>` WP-CLI command — builds pages from a JSON map of pattern slugs without AI. Pages are matched by `id` or `slug` (a slug with no page creates a draft); content is inlined as a fresh block-editor insert would store it, with nested `wp:pattern` references expanded. Supports `--dry-run` and `--references` (store `wp:pattern` blocks instead of inlining), plus optional per-page `title`, `template` and `status`
+- `wp waygate list` WP-CLI command — lists registered patterns, with `--vertical=<slug>`, `--sections` and `--format` (table, json, csv, ids)
+- **Vertical** select in the AI form (Tools → Waygate) — limits the AI to one vertical's patterns (e.g. legal), so a law-firm page doesn't get a spa hero. Defaults to the active child theme's vertical (`elayne-legal` → `legal`); falls back to all patterns when the vertical has fewer than three page sections
+- `Pattern_Lab::get_patterns()` accepts `sections_only` and `vertical` arguments; new `is_page_section()`, `get_verticals()`, `get_default_vertical()`, `expand_pattern_references()` and `build_content()`
+- `AI_Integration::generate_page()` takes an optional third `$vertical` argument; new `get_candidate_patterns()` and `describe_patterns()`
+- Filters: `waygate_verticals` (vertical slugs, default `food-beverage`, `legal`, `plumbing`, `salon`, `spa`) and `waygate_structural_categories` (categories excluded from page sections)
+
+### Changed
+- AI page generation only offers page sections: patterns hidden from the inserter, template and template-part patterns, and header, footer and full-page categories are no longer sent to the AI
+- The AI prompt now includes each pattern's description and keywords, not only slug, title and categories
+- Slugs the AI returns that were not in the offered list are dropped before the page is created
+
+### Fixed
+- Pages created by Waygate lost every backslash in block markup (e.g. `\u002d` escapes and `\"` in block comment JSON), because `wp_insert_post()` unslashes its input. Content is now passed through `wp_slash()` in `create_page()` and `create_page_from_content()`
+
 ## [1.0.0] - 2026-08-23
 
 ### Added
