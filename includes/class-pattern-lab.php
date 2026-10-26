@@ -22,13 +22,43 @@ class Pattern_Lab {
 	}
 
 	/**
-	 * Return all registered Elayne patterns with key metadata.
+	 * Pattern categories that hold site structure or whole pages rather than page sections.
 	 *
+	 * @var string[]
+	 */
+	private static array $structural_categories = array(
+		'header',
+		'footer',
+		'elayne/header',
+		'elayne/footer',
+		'elayne/page',
+		'elayne/pages',
+		'elayne/page-layouts',
+	);
+
+	/**
+	 * Built-in vertical slugs, matching Elayne's vertical pattern categories (`elayne/{slug}`).
+	 *
+	 * @var string[]
+	 */
+	private static array $verticals = array( 'food-beverage', 'legal', 'plumbing', 'salon', 'spa' );
+
+	/**
+	 * Return registered patterns with key metadata.
+	 *
+	 * @param array{sections_only?:bool,vertical?:string} $args {
+	 *     Optional filters.
+	 *
+	 *     @type bool   $sections_only Only return patterns that can be placed as a page section
+	 *                                 (no headers, footers, templates or full-page composites).
+	 *     @type string $vertical      Only return patterns in this vertical's category, e.g. "legal".
+	 * }
 	 * @return array[]
 	 */
-	public static function get_patterns(): array {
+	public static function get_patterns( array $args = array() ): array {
 		$all      = \WP_Block_Patterns_Registry::get_instance()->get_all_registered();
 		$prefixes = apply_filters( 'waygate_pattern_prefixes', array( 'elayne/' ) );
+		$vertical = sanitize_key( $args['vertical'] ?? '' );
 		$patterns = array();
 
 		foreach ( $all as $p ) {
@@ -48,6 +78,14 @@ class Pattern_Lab {
 				continue;
 			}
 
+			if ( ! empty( $args['sections_only'] ) && ! self::is_page_section( $p ) ) {
+				continue;
+			}
+
+			if ( '' !== $vertical && ! self::in_vertical( $p, $vertical ) ) {
+				continue;
+			}
+
 			$patterns[] = array(
 				'slug'        => $p['slug'],
 				'title'       => $p['title'] ?? '',
@@ -58,6 +96,80 @@ class Pattern_Lab {
 		}
 
 		return $patterns;
+	}
+
+	/**
+	 * Whether a registered pattern can be placed as a section of a page.
+	 *
+	 * Excludes patterns hidden from the inserter, template and template-part patterns,
+	 * and anything in a header, footer or full-page category.
+	 *
+	 * @param array $pattern Raw pattern data from the registry.
+	 * @return bool
+	 */
+	public static function is_page_section( array $pattern ): bool {
+		if ( isset( $pattern['inserter'] ) && false === $pattern['inserter'] ) {
+			return false;
+		}
+
+		if ( ! empty( $pattern['templateTypes'] ) ) {
+			return false;
+		}
+
+		foreach ( $pattern['blockTypes'] ?? array() as $block_type ) {
+			if ( str_starts_with( $block_type, 'core/template-part' ) ) {
+				return false;
+			}
+		}
+
+		$excluded = apply_filters( 'waygate_structural_categories', self::$structural_categories );
+
+		return empty( array_intersect( $pattern['categories'] ?? array(), $excluded ) );
+	}
+
+	/**
+	 * Whether a pattern belongs to a vertical, by a category ending in "/{vertical}".
+	 *
+	 * @param array  $pattern  Raw pattern data from the registry.
+	 * @param string $vertical Vertical slug, e.g. "legal".
+	 * @return bool
+	 */
+	private static function in_vertical( array $pattern, string $vertical ): bool {
+		foreach ( $pattern['categories'] ?? array() as $category ) {
+			if ( $category === $vertical || str_ends_with( $category, '/' . $vertical ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Return the known vertical slugs, filterable via waygate_verticals.
+	 *
+	 * @return string[]
+	 */
+	public static function get_verticals(): array {
+		return apply_filters( 'waygate_verticals', self::$verticals );
+	}
+
+	/**
+	 * Return the vertical of the active child theme, or an empty string.
+	 *
+	 * A child theme named "{parent}-{vertical}" (e.g. "elayne-legal") maps to that vertical.
+	 *
+	 * @return string
+	 */
+	public static function get_default_vertical(): string {
+		$stylesheet = get_stylesheet();
+		$template   = get_template();
+
+		if ( $stylesheet === $template || ! str_starts_with( $stylesheet, $template . '-' ) ) {
+			return '';
+		}
+
+		$vertical = substr( $stylesheet, strlen( $template ) + 1 );
+
+		return in_array( $vertical, self::get_verticals(), true ) ? $vertical : '';
 	}
 
 	/**

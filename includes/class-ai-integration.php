@@ -193,21 +193,67 @@ class AI_Integration {
 	}
 
 	/**
+	 * Return the page section patterns the AI may choose from.
+	 *
+	 * Scoped to the vertical when it has at least three sections (a hero, a body section and
+	 * a CTA); otherwise falls back to every page section.
+	 *
+	 * @param string $vertical Optional vertical slug.
+	 * @return array[]
+	 */
+	public static function get_candidate_patterns( string $vertical = '' ): array {
+		if ( '' !== $vertical ) {
+			$scoped = Pattern_Lab::get_patterns(
+				array(
+					'sections_only' => true,
+					'vertical'      => $vertical,
+				)
+			);
+
+			if ( count( $scoped ) >= 3 ) {
+				return $scoped;
+			}
+		}
+
+		return Pattern_Lab::get_patterns( array( 'sections_only' => true ) );
+	}
+
+	/**
+	 * Format patterns as one prompt line each: slug | title | categories | description | keywords.
+	 *
+	 * @param array[] $patterns Patterns from Pattern_Lab::get_patterns().
+	 * @return string
+	 */
+	public static function describe_patterns( array $patterns ): string {
+		$lines = '';
+
+		foreach ( $patterns as $p ) {
+			$cats     = implode( ', ', array_map( fn( $c ) => str_replace( 'elayne/', '', $c ), $p['categories'] ) );
+			$keywords = implode( ', ', $p['keywords'] );
+			$lines   .= "- {$p['slug']} | {$p['title']} | {$cats} | {$p['description']} | {$keywords}\n";
+		}
+
+		return $lines;
+	}
+
+	/**
 	 * Ask the AI to select patterns and assemble a draft page.
 	 *
 	 * @param string $description      Natural-language description of the desired page.
 	 * @param bool   $personalize_text When true, a second AI call rewrites the text content
 	 *                                 of each selected pattern to match the description's theme.
+	 * @param string $vertical         Optional vertical slug (e.g. "legal"); limits the choice to that
+	 *                                 vertical's patterns when it has at least three page sections.
 	 * @return array{title:string,patterns:string[],pattern_count:int,reasoning:string,personalized:bool,edit_url:string,view_url:string}|array{error:string}
 	 */
-	public static function generate_page( string $description, bool $personalize_text = true ): array {
-		$patterns       = Pattern_Lab::get_patterns();
-		$pattern_detail = '';
+	public static function generate_page( string $description, bool $personalize_text = true, string $vertical = '' ): array {
+		$patterns = self::get_candidate_patterns( $vertical );
 
-		foreach ( $patterns as $p ) {
-			$cats            = implode( ', ', array_map( fn( $c ) => str_replace( 'elayne/', '', $c ), $p['categories'] ) );
-			$pattern_detail .= "- {$p['slug']} | {$p['title']} | {$cats}\n";
+		if ( empty( $patterns ) ) {
+			return array( 'error' => 'No page section patterns are registered.' );
 		}
+
+		$pattern_detail = self::describe_patterns( $patterns );
 
 		$schema = array(
 			'type'       => 'object',
@@ -230,7 +276,7 @@ class AI_Integration {
 		);
 
 		$prompt = "User request: {$description}\n\n"
-			. "Available Elayne patterns (slug | title | categories):\n"
+			. "Available Elayne patterns (slug | title | categories | description | keywords):\n"
 			. "{$pattern_detail}\n"
 			. 'Select the best patterns to assemble a page for this request.';
 
@@ -268,8 +314,15 @@ class AI_Integration {
 			return array( 'error' => 'AI returned an unexpected response. Raw output: ' . esc_html( substr( $raw, 0, 300 ) ) );
 		}
 
+		// Keep only slugs that were offered, so the AI cannot place a header, template or other vertical.
+		$offered = array_column( $patterns, 'slug' );
+		$slugs   = array_values( array_filter( (array) $data['patterns'], fn( $s ) => in_array( $s, $offered, true ) ) );
+
+		if ( empty( $slugs ) ) {
+			return array( 'error' => 'AI selected no patterns from the offered list.' );
+		}
+
 		$page_title   = $data['title'] ?? $description;
-		$slugs        = $data['patterns'];
 		$personalized = false;
 
 		if ( $personalize_text ) {

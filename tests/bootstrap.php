@@ -34,6 +34,24 @@ function wp_kses_post( string $data ): string {
 	return preg_replace( '#<script\b[^>]*>[\s\S]*?</script>#i', '', $data );
 }
 
+$GLOBALS['wp_theme'] = [ 'stylesheet' => 'elayne', 'template' => 'elayne' ];
+
+function get_stylesheet(): string {
+	return $GLOBALS['wp_theme']['stylesheet'];
+}
+
+function get_template(): string {
+	return $GLOBALS['wp_theme']['template'];
+}
+
+function sanitize_title( string $title ): string {
+	return strtolower( trim( preg_replace( '/[^A-Za-z0-9-]+/', '-', $title ), '-' ) );
+}
+
+function wp_slash( mixed $value ): mixed {
+	return is_array( $value ) ? array_map( 'wp_slash', $value ) : ( is_string( $value ) ? addslashes( $value ) : $value );
+}
+
 function esc_attr( string $str ): string {
 	return htmlspecialchars( $str, ENT_QUOTES );
 }
