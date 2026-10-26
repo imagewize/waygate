@@ -74,4 +74,22 @@ class PageBuildTest extends TestCase {
 		$this->assertInstanceOf( WP_Error::class, $result );
 		$this->assertStringContainsString( 'elayne/nope', $result->get_error_message() );
 	}
+
+	// --- backslashes survive wp_insert_post() unslashing ---
+
+	public function test_create_page_from_content_keeps_backslashes(): void {
+		$markup = '<!-- wp:paragraph {"content":"a\\u002d\\u002db"} --><p>a "quoted" \\ b</p><!-- /wp:paragraph -->';
+
+		Pattern_Lab::create_page_from_content( 'Test', [ $markup ] );
+
+		$this->assertSame( $markup, $GLOBALS['wp_last_inserted_post']['post_content'] );
+	}
+
+	public function test_create_page_keeps_references_intact(): void {
+		$this->register( 'elayne/a', [], [ 'content' => '<p>A</p>' ] );
+
+		Pattern_Lab::create_page( 'Test', [ 'elayne/a' ] );
+
+		$this->assertSame( "<!-- wp:pattern {\"slug\":\"elayne/a\"} /-->\n\n", $GLOBALS['wp_last_inserted_post']['post_content'] );
+	}
 }

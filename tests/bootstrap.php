@@ -61,6 +61,8 @@ function is_wp_error( mixed $thing ): bool {
 }
 
 function wp_insert_post( array $args, bool $wp_error = false ): int|WP_Error {
+	// Like core, unslash the input, so tests see what would reach the database.
+	$GLOBALS['wp_last_inserted_post'] = array_map( fn( $v ) => is_string( $v ) ? stripslashes( $v ) : $v, $args );
 	return 1;
 }
 

@@ -258,12 +258,15 @@ class Pattern_Lab {
 			return new \WP_Error( 'no_content', 'No block content was provided.' );
 		}
 
+		// wp_insert_post() unslashes its input; slash it so backslashes in block JSON survive.
 		return wp_insert_post(
-			array(
-				'post_title'   => sanitize_text_field( $title ),
-				'post_content' => $content,
-				'post_status'  => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
-				'post_type'    => 'page',
+			wp_slash(
+				array(
+					'post_title'   => sanitize_text_field( $title ),
+					'post_content' => $content,
+					'post_status'  => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
+					'post_type'    => 'page',
+				)
 			),
 			true
 		);
@@ -299,12 +302,15 @@ class Pattern_Lab {
 			return new \WP_Error( 'no_valid_patterns', 'No valid patterns were selected.' );
 		}
 
+		// wp_insert_post() unslashes its input; slash it so backslashes in block JSON survive.
 		return wp_insert_post(
-			array(
-				'post_title'   => sanitize_text_field( $title ),
-				'post_content' => $content,
-				'post_status'  => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
-				'post_type'    => 'page',
+			wp_slash(
+				array(
+					'post_title'   => sanitize_text_field( $title ),
+					'post_content' => $content,
+					'post_status'  => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
+					'post_type'    => 'page',
+				)
 			),
 			true
 		);
