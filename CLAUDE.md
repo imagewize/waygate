@@ -69,6 +69,12 @@ plugins_loaded → Pattern_Lab::init()
 - **Mistral provider** (`saarnilauri/ai-provider-for-mistral`) — set `MISTRAL_API_KEY` in the site `.env`
 - **Elayne theme** — provides the block patterns that this plugin orchestrates
 
+## Docs
+
+`docs/` holds public reference only: what ships, for GitHub readers, linked from `README.md`.
+Roadmaps, plans and code reviews live in the private `imagewize/imagewize.com` repo under
+`docs/waygate/`, never here, and nothing in this repo should point readers there.
+
 ## Commits
 
 Use atomic commits: each commit represents one logical change and must build/pass on its own. Group files that belong to the same logical change into one commit; split files that represent different changes into separate commits. Typical split for a patch:
