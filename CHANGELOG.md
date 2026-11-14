@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - The server abilities never registered: they used a `content` ability category that nothing registers, so WordPress refused them with a `_doing_it_wrong` notice. Waygate now registers its own `waygate` category, and `list-patterns` runs without input
+- Patterns registered by a plugin with `register_block_pattern()` were never listed: Waygate read the `slug` key, which only theme file patterns carry. It now reads the registry's `name`
 
 ### Changed
 - Abilities renamed `elayne/list-patterns` → `waygate/list-patterns` and `elayne/create-page` → `waygate/create-page`, and marked `public`. The old names never registered, so no client depended on them
