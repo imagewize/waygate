@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Use Aludra patterns** setting on Tools → Waygate (`waygate_use_aludra`), shown when the Aludra plugin's `aludra/compose-page` ability is registered. Offers Aludra's section and carousel patterns alongside the theme's, and builds a page made only of Aludra patterns through `aludra/compose-page`, so its markup is inlined and stays valid in the editor. AI text personalization is skipped for such pages; mixed pages keep `wp:pattern` references
+- `Pattern_Lab::use_aludra()`, `default_prefixes()`, `aludra_sections()` and `create_page_with_aludra()`
+
 ### Fixed
 - The server abilities never registered: they used a `content` ability category that nothing registers, so WordPress refused them with a `_doing_it_wrong` notice. Waygate now registers its own `waygate` category, and `list-patterns` runs without input
 - Patterns registered by a plugin with `register_block_pattern()` were never listed: Waygate read the `slug` key, which only theme file patterns carry. It now reads the registry's `name`

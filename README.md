@@ -133,6 +133,19 @@ wp waygate list --format=ids
 
 `--sections` leaves out headers, footers, templates and full-page patterns.
 
+### Aludra patterns (optional)
+
+With the [Aludra](https://github.com/imagewize/aludra) block library active (a release that registers
+its `aludra/compose-page` ability — newer than 2.43.0), Tools → Waygate shows a **Use Aludra patterns** setting
+(`waygate_use_aludra` option). When it is on:
+
+- Aludra's section and carousel patterns are offered alongside the theme's (its whole-page,
+  header, footer and mega-menu patterns are not).
+- A page made **only** of Aludra patterns is built by `aludra/compose-page`, which inlines the
+  pattern markup and refuses a pattern that uses a block disabled under Settings → Aludra. AI text
+  personalization is skipped for these pages, because rewritten markup would bypass that.
+- A page that mixes theme and Aludra patterns is built as before, from `wp:pattern` references.
+
 ---
 
 ## Abilities API (WordPress 7.0+)

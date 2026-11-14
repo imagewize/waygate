@@ -53,6 +53,10 @@ AI page generation requires a running provider configured through WordPress 7.0'
 
 Yes, in the sense that it works with any block theme that registers its own block patterns. Waygate discovers patterns registered under a configurable prefix (`elayne/` by default, filterable via `waygate_pattern_prefixes`) and assembles pages from them. Elayne is the primary supported theme and ships the pattern library Waygate is designed around.
 
+= Can I use Aludra patterns too? =
+
+Yes. With the Aludra block library active, turn on **Use Aludra patterns** under Tools → Waygate. Aludra's section patterns are then offered alongside the theme's, and a page built only from Aludra patterns is assembled by Aludra's `aludra/compose-page` ability so it stays valid in the block editor.
+
 = Do I need an AI provider to use this plugin? =
 
 No. The pattern catalog and manual page assembly work without one. AI-driven generation from a natural-language description requires a configured WordPress AI Client provider (Mistral, Claude, OpenAI, or Gemini).
