@@ -46,9 +46,18 @@ HTML;
 		$markup = '<!-- wp:column {"width":"58%","verticalAlignment":"top","borderColor":"border-light"} --><div class="wp-block-column"></div><!-- /wp:column -->'
 			. '<!-- wp:cover {"overlayColor":"primary","contentPosition":"center left","minHeightUnit":"px","alt":"Harbor at sunset"} --><div class="wp-block-cover"></div><!-- /wp:cover -->'
 			. '<!-- wp:social-link {"service":"instagram","iconColorValue":"#fff"} /-->'
-			. '<!-- wp:imagewize/stat {"value":"20","ratio":"3/4","label":"Years"} /-->';
+			. '<!-- wp:image {"aspectRatio":"3/4","width":"48px","height":"20px"} /-->';
 
-		$this->assertSame( [ 'Harbor at sunset', 'Years' ], Text_Replace::texts( $markup ) );
+		$this->assertSame( [ 'Harbor at sunset' ], Text_Replace::texts( $markup ) );
+	}
+
+	public function test_stat_values_stay_copy(): void {
+		$markup = '<!-- wp:aludra/stat-item {"number":"-71%","caption":"Page weight"} /-->'
+			. '<!-- wp:aludra/stat-item {"number":"24/7","caption":"Support"} /-->'
+			. '<!-- wp:aludra/stat-item {"number":"20","caption":"Years"} /-->'
+			. '<!-- wp:woocommerce/customer-account {"iconStyle":"line","iconClass":"x-icon","imageSizing":"thumbnail"} /-->';
+
+		$this->assertSame( [ '-71%', 'Page weight', '24/7', 'Support', '20', 'Years' ], Text_Replace::texts( $markup ) );
 	}
 
 	public function test_apply_replaces_whole_runs_and_escapes(): void {
