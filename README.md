@@ -20,7 +20,7 @@ Waygate lets you assemble WordPress pages from block patterns — manually or vi
 - **Developer debug info** — When `WP_ENV=development`, the page editor sidebar and the generation notice also show the ordered pattern slugs and generation timestamp
 - **Prompt templates** — Six built-in page templates (Homepage, About, Services, Contact, Landing Page, Portfolio) pre-fill the AI prompt; extend via the `waygate_prompt_templates` filter
 - **Feature detection** — AI form is hidden automatically when no provider supports text generation
-- **Abilities API** — Exposes `elayne/list-patterns` and `elayne/create-page` server abilities plus a `waygate/insert-pattern` client-side ability for the block editor (WP 7.0+)
+- **Abilities API** — Exposes `waygate/list-patterns` and `waygate/create-page` server abilities plus a `waygate/insert-pattern` client-side ability for the block editor (WP 7.0+)
 - **REST API** — `GET /wp-json/waygate/v1/patterns` and `POST /wp-json/waygate/v1/pages` for headless and external tool integration
 - **Multi-provider** — Works with Mistral, Claude, OpenAI, or Gemini via WP AI Client
 - **Vertical scoping** — Limit the AI to one vertical's patterns (e.g. legal), so a law-firm page doesn't get a spa hero; defaults to the active child theme's vertical
@@ -141,8 +141,8 @@ When WordPress 7.0's Abilities API is available, Waygate registers three abiliti
 
 | Ability | Type | Description |
 |---|---|---|
-| `elayne/list-patterns` | Server | Returns patterns, optionally filtered by category |
-| `elayne/create-page` | Server | Creates a draft page from an ordered list of pattern slugs |
+| `waygate/list-patterns` | Server | Returns patterns, optionally filtered by category |
+| `waygate/create-page` | Server | Creates a draft page from an ordered list of pattern slugs |
 | `waygate/insert-pattern` | Client (editor) | Inserts a pattern block at the current cursor position in the block editor |
 
 The client-side ability is registered via `@wordpress/abilities` and is available whenever the block editor is open. Pass a `slug` parameter (e.g. `"elayne/hero-centered"`) to insert any registered pattern.
