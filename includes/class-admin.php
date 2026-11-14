@@ -404,6 +404,11 @@ class Admin {
 			<p style="margin:0 0 6px;font-size:12px;color:#555">
 				<strong>AI reasoning:</strong> <?php echo esc_html( $result['reasoning'] ); ?>
 			</p>
+			<?php if ( ! empty( $result['text_error'] ) ) : ?>
+			<p style="margin:0 0 6px;font-size:12px;color:#8a6d00">
+				<strong>Text not rewritten:</strong> <?php echo esc_html( $result['text_error'] ); ?>
+			</p>
+			<?php endif; ?>
 			<?php if ( ! empty( $result['warnings'] ) ) : ?>
 			<p style="margin:0 0 6px;font-size:12px;color:#8a6d00">
 				<strong>Not replaced:</strong> <?php echo esc_html( implode( ' ', $result['warnings'] ) ); ?>

@@ -76,6 +76,19 @@ class AiIntegrationTest extends TestCase {
 		$this->assertStringContainsString( '[industry]', $templates['homepage']['prompt'] );
 	}
 
+	// --- request timeout ---
+
+	public function test_request_timeout_defaults_to_two_minutes_and_is_filterable(): void {
+		$this->assertSame( 120.0, AI_Integration::request_timeout() );
+
+		add_filter( 'waygate_ai_request_timeout', fn() => 300 );
+		$this->assertSame( 300.0, AI_Integration::request_timeout() );
+
+		remove_all_filters( 'waygate_ai_request_timeout' );
+		add_filter( 'waygate_ai_request_timeout', fn() => 'nope' );
+		$this->assertSame( 120.0, AI_Integration::request_timeout() );
+	}
+
 	// --- text pairs ---
 
 	private function register_hero(): void {
@@ -139,14 +152,72 @@ class AiIntegrationTest extends TestCase {
 		$this->assertSame( [ 'elayne/hero' ], AI_Integration::sections_from_response( [ 'elayne/hero' ], [], 'nope' ) );
 	}
 
-	public function test_personalize_sections_empty_without_texts(): void {
-		$this->assertSame( [], AI_Integration::personalize_sections( [ 'elayne/nonexistent' ], 'carpenter' ) );
+	public function test_person_placeholders_are_names_and_initials(): void {
+		foreach ( [ 'Sarah J.', 'SJ', 'MT', 'Anne Marie V.', 'Émile R.' ] as $name ) {
+			$this->assertTrue( AI_Integration::is_person_placeholder( $name ), $name );
+		}
+		foreach ( [ 'Real Reviews', 'What Our Customers Say', 'Homeowner · Google Review', 'FAQ about us', 'Call Now' ] as $text ) {
+			$this->assertFalse( AI_Integration::is_person_placeholder( $text ), $text );
+		}
 	}
 
-	public function test_personalize_sections_empty_when_ai_unavailable(): void {
-		// wp_ai_client_prompt doesn't exist here; the Error is caught.
+	public function test_rewritable_texts_leave_out_people(): void {
+		WP_Block_Patterns_Registry::get_instance()->register(
+			[
+				'slug'    => 'elayne/reviews',
+				'title'   => 'Reviews',
+				'content' => '<p>Great work!</p><p>SJ</p><p>Sarah J.</p><p>Homeowner</p>',
+			]
+		);
+
+		$this->assertSame( [ 'elayne/reviews' => [ 'Great work!', 'Homeowner' ] ], AI_Integration::rewritable_texts( [ 'elayne/reviews' ] ) );
+	}
+
+	public function test_contact_tokens_normalise_phones_and_emails(): void {
+		$this->assertSame( [ '5551234567' ], AI_Integration::contact_tokens( 'Call Now: (555) 123-4567' ) );
+		$this->assertSame( [ '5551234567' ], AI_Integration::contact_tokens( 'Bel nu: 555-123-4567' ) );
+		$this->assertSame( [ 'info@example.com' ], AI_Integration::contact_tokens( 'Mail Info@Example.com today' ) );
+		$this->assertSame( [], AI_Integration::contact_tokens( '20+ years, 2,400+ jobs, 24/7' ) );
+	}
+
+	public function test_sections_from_response_rejects_changed_contact_details(): void {
+		$texts = [ 'elayne/cta' => [ 'Call Now: (555) 123-4567', 'Request a Callback', 'We reply fast.' ] ];
+		$data  = [
+			'elayne/cta' => [
+				[ 'n' => 0, 'text' => 'Bel nu: 030 123 4567' ],
+				[ 'n' => 1, 'text' => 'Mail info@houtwerk.test' ],
+				[ 'n' => 2, 'text' => 'We reply within a day.' ],
+			],
+		];
+
+		$this->assertSame(
+			[ [ 'pattern' => 'elayne/cta', 'texts' => [ [ 'find' => 'We reply fast.', 'replace' => 'We reply within a day.' ] ] ] ],
+			AI_Integration::sections_from_response( [ 'elayne/cta' ], $texts, $data )
+		);
+
+		$kept = AI_Integration::sections_from_response( [ 'elayne/cta' ], $texts, [ 'elayne/cta' => [ [ 'n' => 0, 'text' => 'Bel nu: (555) 123-4567' ] ] ] );
+		$this->assertSame( 'Bel nu: (555) 123-4567', $kept[0]['texts'][0]['replace'] );
+	}
+
+	public function test_pairs_prompt_states_the_language(): void {
+		$this->assertStringContainsString( "Write in: English\n", AI_Integration::pairs_prompt( [ 'elayne/hero' => [ 'Hi' ] ], 'carpenter', 'English' ) );
+		$this->assertStringNotContainsString( 'Write in:', AI_Integration::pairs_prompt( [ 'elayne/hero' => [ 'Hi' ] ], 'carpenter' ) );
+	}
+
+	public function test_personalize_sections_errors_without_texts(): void {
+		$result = AI_Integration::personalize_sections( [ 'elayne/nonexistent' ], 'carpenter' );
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'no_texts', $result->get_error_code() );
+	}
+
+	public function test_personalize_sections_reports_ai_failure(): void {
+		// wp_ai_client_prompt doesn't exist here; the Error is caught and reported.
 		$this->register_hero();
 
-		$this->assertSame( [], AI_Integration::personalize_sections( [ 'elayne/hero' ], 'carpenter' ) );
+		$result = AI_Integration::personalize_sections( [ 'elayne/hero' ], 'carpenter' );
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'ai_failed', $result->get_error_code() );
 	}
 }
