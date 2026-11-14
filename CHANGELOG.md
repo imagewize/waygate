@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-14
+
 ### Added
 - `waygate_ai_request_timeout` filter (default 120 seconds). Waygate's AI calls no longer use core's 30-second default, which a page rewrite exceeded
 - `tests/smoke/ai-generate.php`: generates a page with the site's AI provider and prints the result (`wp eval-file`)

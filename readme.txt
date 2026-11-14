@@ -4,7 +4,7 @@ Tags: patterns, page-builder, ai, block-theme, gutenberg
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,12 @@ Yes. Waygate exposes REST endpoints (`GET /wp-json/waygate/v1/patterns`, `POST /
 
 == Changelog ==
 
+= 1.3.0 =
+* Changed: AI text personalization uses find/replace pairs instead of rewriting block markup, so personalized pages keep the patterns' markup and stay valid in the editor. It writes in the request's language, leaves statistics, names, phone numbers and emails alone, and reports texts it could not place on Tools → Waygate
+* Added: Text and link pairs on `waygate/create-page` and in `wp waygate build` maps; `waygate/get-pattern` ability and `wp waygate get <slug>` command listing a pattern's replaceable texts and links
+* Added: `waygate_ai_request_timeout` filter (default 120 seconds)
+* Removed: `AI_Integration::rewrite_pattern_texts()`; use `personalize_sections()`
+
 = 1.2.0 =
 * Added: "Use Aludra patterns" setting on Tools → Waygate. With the Aludra plugin active, its section patterns are offered too, and a page built only from Aludra patterns is assembled by `aludra/compose-page` so it stays valid in the editor
 * Fixed: the server abilities never registered (unregistered ability category); they are now `waygate/list-patterns` and `waygate/create-page`
@@ -113,6 +119,9 @@ limit WordPress.org enforces. The complete history is in CHANGELOG.md:
 https://github.com/imagewize/waygate/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.3.0 =
+AI personalization now replaces texts through find/replace pairs and keeps pages valid in the editor. Removes AI_Integration::rewrite_pattern_texts().
 
 = 1.2.0 =
 Fixes the abilities, now named waygate/list-patterns and waygate/create-page, lists plugin-registered patterns, and adds optional Aludra pattern support.
