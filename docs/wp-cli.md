@@ -26,6 +26,30 @@ The map lists pages and their patterns in order:
   nested `wp:pattern` references are expanded. `--references` stores `wp:pattern` blocks instead.
 - An unknown slug fails that page, and the command exits non-zero.
 
+A pattern can also carry `texts` and `links`, as `{find, replace}` pairs (see
+[Replacing text and links](api.md#replacing-text-and-links)):
+
+```json
+{
+  "pages": [
+    {
+      "slug": "home",
+      "patterns": [
+        {
+          "pattern": "elayne/salon-hero",
+          "texts": [{ "find": "Your beauty, our passion", "replace": "Colour and cuts in Utrecht" }],
+          "links": [{ "find": "/contact", "replace": "/book" }]
+        },
+        "elayne/salon-services"
+      ]
+    }
+  ]
+}
+```
+
+A find that matches nothing prints a warning and the page is still built. `--references` fails a
+page whose patterns carry pairs, since a reference cannot hold them.
+
 ## `wp waygate list`
 
 ```bash

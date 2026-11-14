@@ -5,6 +5,17 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `waygate/get-pattern` ability — one pattern's markup plus the exact `texts` and `links` that can be replaced, for any theme's patterns
+- Text and link pairs on `waygate/create-page`: each pattern can be a `{pattern, texts, links}` section, where `texts` and `links` are lists of `{find, replace}` pairs. A find matches a whole text run or text attribute, so the block stays valid in the editor; replacements are escaped plain text or sanitized URLs. Finds that match nothing come back as `warnings`. Pages made only of Aludra patterns pass the pairs on to `aludra/compose-page`
+- The same sections in `wp waygate build` maps, with a warning per unmatched find
+- `Text_Replace` class (ported from Aludra, compatible with its find strings), `Pattern_Lab::get_pattern()`, `normalize_section()` and `compose()`
+
+### Changed
+- `Pattern_Lab::create_page()` and `build_content()` accept sections as well as slugs; `create_page()` and `create_page_with_aludra()` take an optional `$warnings` out-parameter. Once any section has pairs, `create_page()` inlines every pattern instead of storing `wp:pattern` references
+
 ## [1.2.0] - 2026-11-14
 
 ### Added

@@ -5,12 +5,42 @@
 | Ability | Runs | Permission | What it does |
 |---|---|---|---|
 | `waygate/list-patterns` | Server | `edit_posts` | Lists patterns; optional `category` filter, e.g. `hero` |
-| `waygate/create-page` | Server | `publish_pages` | Creates a page from an ordered list of pattern slugs (`title`, `patterns`, `status`) |
+| `waygate/get-pattern` | Server | `edit_posts` | One pattern's markup plus the exact `texts` and `links` that `create-page` can replace (`slug`) |
+| `waygate/create-page` | Server | `publish_pages` | Creates a page from an ordered list of patterns (`title`, `patterns`, `status`); returns `warnings` |
 | `waygate/insert-pattern` | Block editor | — | Inserts a pattern (`slug`) at the cursor |
 
 The server abilities are in the `waygate` category and exposed over REST at
 `/wp-json/wp-abilities/v1/abilities/waygate/<name>/run`. Run them from PHP or WP-CLI with
 `wp_get_ability( 'waygate/create-page' )->execute( $input )`.
+
+### Replacing text and links
+
+Each item in `patterns` is a slug, or a section with `texts` and `links`: lists of
+`{find, replace}` pairs. Take the find strings verbatim from `waygate/get-pattern`.
+
+```json
+{
+  "title": "Salon Rosa",
+  "patterns": [
+    {
+      "pattern": "elayne/salon-hero",
+      "texts": [{ "find": "Your beauty, our passion", "replace": "Colour and cuts in Utrecht" }],
+      "links": [{ "find": "/contact", "replace": "/book" }]
+    },
+    "elayne/salon-services"
+  ]
+}
+```
+
+- A find matches a whole text run (the text between two tags) or a whole text attribute, never
+  part of one, so the block still validates in the editor. A heading with inline emphasis has one
+  text per run.
+- Replacements are plain text or URLs. Text is escaped, URLs are sanitized; neither can add markup.
+- Structural attributes (class names, layout, colours, IDs) are never replaced.
+- A find that matches nothing is reported in `warnings` and the page is still created.
+- Once any section has pairs, every pattern on the page is inlined instead of stored as a
+  `wp:pattern` reference. A page made only of Aludra patterns goes to `aludra/compose-page`
+  with the pairs passed on.
 
 ## REST endpoints
 
