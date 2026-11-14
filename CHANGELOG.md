@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `waygate/get-pattern` ability — one pattern's markup plus the exact `texts` and `links` that can be replaced, for any theme's patterns
 - Text and link pairs on `waygate/create-page`: each pattern can be a `{pattern, texts, links}` section, where `texts` and `links` are lists of `{find, replace}` pairs. A find matches a whole text run or text attribute, so the block stays valid in the editor; replacements are escaped plain text or sanitized URLs. Finds that match nothing come back as `warnings`. Pages made only of Aludra patterns pass the pairs on to `aludra/compose-page`
 - The same sections in `wp waygate build` maps, with a warning per unmatched find
+- Layout attributes are never listed or replaced as text: colours, widths, alignment, units, positions, ratios, style and class names, icon and service names, and CSS lengths or hex values. Stat values such as `-71%` stay replaceable
 - `Text_Replace` class (ported from Aludra, compatible with its find strings), `Pattern_Lab::get_pattern()`, `normalize_section()` and `compose()`
 
 ### Changed
