@@ -5,18 +5,18 @@ All notable changes to Waygate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-11-14
 
 ### Added
 - **Use Aludra patterns** setting on Tools → Waygate (`waygate_use_aludra`), shown when the Aludra plugin's `aludra/compose-page` ability is registered. Offers Aludra's section and carousel patterns alongside the theme's, and builds a page made only of Aludra patterns through `aludra/compose-page`, so its markup is inlined and stays valid in the editor. AI text personalization is skipped for such pages; mixed pages keep `wp:pattern` references
 - `Pattern_Lab::use_aludra()`, `default_prefixes()`, `aludra_sections()` and `create_page_with_aludra()`
 
+### Changed
+- Abilities renamed `elayne/list-patterns` → `waygate/list-patterns` and `elayne/create-page` → `waygate/create-page`, and marked `public`. The old names never registered, so no client depended on them
+
 ### Fixed
 - The server abilities never registered: they used a `content` ability category that nothing registers, so WordPress refused them with a `_doing_it_wrong` notice. Waygate now registers its own `waygate` category, and `list-patterns` runs without input
 - Patterns registered by a plugin with `register_block_pattern()` were never listed: Waygate read the `slug` key, which only theme file patterns carry. It now reads the registry's `name`
-
-### Changed
-- Abilities renamed `elayne/list-patterns` → `waygate/list-patterns` and `elayne/create-page` → `waygate/create-page`, and marked `public`. The old names never registered, so no client depended on them
 
 ## [1.1.0] - 2026-10-26
 
