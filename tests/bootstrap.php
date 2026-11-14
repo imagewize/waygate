@@ -175,7 +175,7 @@ class WP_Block_Patterns_Registry {
 
 	public function get_registered( string $slug ): ?array {
 		foreach ( $this->patterns as $pattern ) {
-			if ( ( $pattern['slug'] ?? '' ) === $slug ) {
+			if ( ( $pattern['name'] ?? $pattern['slug'] ?? '' ) === $slug ) {
 				return $pattern;
 			}
 		}

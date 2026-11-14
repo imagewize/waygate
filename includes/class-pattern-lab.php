@@ -62,7 +62,11 @@ class Pattern_Lab {
 		$patterns = array();
 
 		foreach ( $all as $p ) {
-			if ( empty( $p['slug'] ) ) {
+			// The registry keys every pattern by "name". Only theme file patterns also carry
+			// "slug"; a plugin's register_block_pattern() call does not.
+			$p['slug'] = $p['name'] ?? $p['slug'] ?? '';
+
+			if ( '' === $p['slug'] ) {
 				continue;
 			}
 

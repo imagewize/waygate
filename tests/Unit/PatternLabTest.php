@@ -42,6 +42,19 @@ class PatternLabTest extends TestCase {
 
 	// --- get_patterns() ---
 
+	public function test_get_patterns_includes_plugin_patterns_registered_by_name(): void {
+		// register_block_pattern() from a plugin stores "name" but no "slug".
+		WP_Block_Patterns_Registry::get_instance()->register(
+			[
+				'name'       => 'elayne/plugin-hero',
+				'title'      => 'Plugin Hero',
+				'categories' => [],
+			]
+		);
+
+		$this->assertSame( [ 'elayne/plugin-hero' ], array_column( Pattern_Lab::get_patterns(), 'slug' ) );
+	}
+
 	public function test_get_patterns_returns_elayne_patterns_by_default(): void {
 		$this->register( 'elayne/hero', 'Hero' );
 		$this->register( 'othertheme/hero', 'Other Hero' );
