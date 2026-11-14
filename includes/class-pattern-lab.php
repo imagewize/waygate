@@ -34,6 +34,7 @@ class Pattern_Lab {
 		'elayne/page',
 		'elayne/pages',
 		'elayne/page-layouts',
+		'aludra-pages',
 	);
 
 	/**
@@ -42,6 +43,97 @@ class Pattern_Lab {
 	 * @var string[]
 	 */
 	private static array $verticals = array( 'food-beverage', 'legal', 'plumbing', 'salon', 'spa' );
+
+	/**
+	 * Option that lets Waygate build pages from Aludra patterns through aludra/compose-page.
+	 */
+	public const ALUDRA_OPTION = 'waygate_use_aludra';
+
+	/**
+	 * Whether Waygate should use Aludra: the option is on and Aludra's compose-page ability
+	 * is registered (Aludra active, its abilities not filtered off).
+	 *
+	 * @return bool
+	 */
+	public static function use_aludra(): bool {
+		if ( ! get_option( self::ALUDRA_OPTION, false ) || ! function_exists( 'wp_has_ability' ) ) {
+			return false;
+		}
+
+		// wp_has_ability(), not wp_get_ability(): the latter raises a notice for a missing ability.
+		return wp_has_ability( 'aludra/compose-page' );
+	}
+
+	/**
+	 * Pattern slug prefixes Waygate offers before the waygate_pattern_prefixes filter.
+	 *
+	 * @return string[]
+	 */
+	public static function default_prefixes(): array {
+		return self::use_aludra() ? array( 'elayne/', 'aludra/' ) : array( 'elayne/' );
+	}
+
+	/**
+	 * Map an ordered slug list to aludra/compose-page sections, when Aludra can build all of it.
+	 *
+	 * Aludra composes only its own patterns, so a page that mixes in any other pattern
+	 * returns null and is built the usual way.
+	 *
+	 * @param string[] $slugs Ordered, validated pattern slugs.
+	 * @return array[]|null Sections for aludra/compose-page, or null.
+	 */
+	public static function aludra_sections( array $slugs ): ?array {
+		if ( empty( $slugs ) ) {
+			return null;
+		}
+
+		foreach ( $slugs as $slug ) {
+			if ( ! str_starts_with( $slug, 'aludra/' ) ) {
+				return null;
+			}
+		}
+
+		return array_map( fn( string $slug ): array => array( 'pattern' => $slug ), array_values( $slugs ) );
+	}
+
+	/**
+	 * Build a page with aludra/compose-page.
+	 *
+	 * Aludra inlines its pattern markup and refuses patterns that use a block the site has
+	 * disabled, so the page passes block validation when opened in the editor.
+	 *
+	 * @param string  $title    Page title.
+	 * @param array[] $sections Sections from aludra_sections().
+	 * @param string  $status   Post status ('draft' or 'publish').
+	 * @return int|\WP_Error Post ID on success, WP_Error on failure.
+	 */
+	public static function create_page_with_aludra( string $title, array $sections, string $status = 'draft' ) {
+		$ability = function_exists( 'wp_has_ability' ) && wp_has_ability( 'aludra/compose-page' )
+			? wp_get_ability( 'aludra/compose-page' )
+			: null;
+
+		if ( null === $ability ) {
+			return new \WP_Error( 'aludra_unavailable', 'The aludra/compose-page ability is not registered.' );
+		}
+
+		$result = $ability->execute(
+			array(
+				'title'    => sanitize_text_field( $title ),
+				'status'   => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
+				'sections' => $sections,
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		if ( empty( $result['page_id'] ) ) {
+			return new \WP_Error( 'aludra_failed', 'aludra/compose-page returned no page.' );
+		}
+
+		return (int) $result['page_id'];
+	}
 
 	/**
 	 * Return registered patterns with key metadata.
@@ -57,7 +149,7 @@ class Pattern_Lab {
 	 */
 	public static function get_patterns( array $args = array() ): array {
 		$all      = \WP_Block_Patterns_Registry::get_instance()->get_all_registered();
-		$prefixes = apply_filters( 'waygate_pattern_prefixes', array( 'elayne/' ) );
+		$prefixes = apply_filters( 'waygate_pattern_prefixes', self::default_prefixes() );
 		$vertical = sanitize_key( $args['vertical'] ?? '' );
 		$patterns = array();
 
@@ -277,7 +369,10 @@ class Pattern_Lab {
 	}
 
 	/**
-	 * Create a WordPress page from an ordered list of Elayne pattern slugs.
+	 * Create a WordPress page from an ordered list of pattern slugs.
+	 *
+	 * When every slug is an Aludra pattern and Waygate is set to use Aludra, the page is
+	 * built by aludra/compose-page instead of from wp:pattern references.
 	 *
 	 * @param string   $title         Page title.
 	 * @param string[] $pattern_slugs Ordered list of validated pattern slugs.
@@ -286,6 +381,7 @@ class Pattern_Lab {
 	 */
 	public static function create_page( string $title, array $pattern_slugs, string $status = 'draft' ) {
 		$registered_slugs = array_column( self::get_patterns(), 'slug' );
+		$valid_slugs      = array();
 		$content          = '';
 
 		foreach ( $pattern_slugs as $slug ) {
@@ -299,7 +395,14 @@ class Pattern_Lab {
 				continue;
 			}
 
-			$content .= '<!-- wp:pattern {"slug":"' . esc_attr( $slug ) . '"} /-->' . "\n\n";
+			$valid_slugs[] = $slug;
+			$content      .= '<!-- wp:pattern {"slug":"' . esc_attr( $slug ) . '"} /-->' . "\n\n";
+		}
+
+		$aludra_sections = self::aludra_sections( $valid_slugs );
+
+		if ( null !== $aludra_sections && self::use_aludra() ) {
+			return self::create_page_with_aludra( $title, $aludra_sections, $status );
 		}
 
 		if ( empty( $content ) ) {

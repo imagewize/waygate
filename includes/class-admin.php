@@ -90,6 +90,15 @@ class Admin {
 			}
 		}
 
+		if (
+			isset( $_POST['waygate_action'] ) &&
+			'settings' === $_POST['waygate_action'] &&
+			check_admin_referer( 'waygate_settings' ) &&
+			current_user_can( 'manage_options' )
+		) {
+			update_option( Pattern_Lab::ALUDRA_OPTION, empty( $_POST['use_aludra'] ) ? '0' : '1' );
+		}
+
 		$all_patterns = Pattern_Lab::get_patterns();
 		usort( $all_patterns, fn( $a, $b ) => strcmp( $a['slug'], $b['slug'] ) );
 
@@ -129,6 +138,8 @@ class Admin {
 			<h1>Waygate <span style="font-size:.7em;font-weight:400;color:#888">— Pattern Page Builder</span></h1>
 
 			<?php self::status_notices( $ai_available, $text_gen_supported ); ?>
+
+			<?php self::aludra_settings(); ?>
 
 			<?php if ( $result ) : ?>
 				<?php self::result_notice( $result ); ?>
@@ -283,6 +294,33 @@ class Admin {
 	}
 
 	/**
+	 * Renders the "Use Aludra" setting, only when Aludra's compose-page ability exists.
+	 */
+	private static function aludra_settings(): void {
+		if ( ! function_exists( 'wp_has_ability' ) || ! wp_has_ability( 'aludra/compose-page' ) ) {
+			return;
+		}
+		?>
+		<div class="card" style="max-width:100%;padding:12px 24px;margin-bottom:24px">
+			<form method="post">
+				<?php wp_nonce_field( 'waygate_settings' ); ?>
+				<input type="hidden" name="waygate_action" value="settings">
+				<label>
+					<input type="checkbox" name="use_aludra" value="1" <?php checked( (bool) get_option( Pattern_Lab::ALUDRA_OPTION, false ) ); ?>>
+					<strong>Use Aludra patterns</strong>
+				</label>
+				<p class="description">
+					Offer Aludra's section patterns alongside the theme's. A page made only of Aludra patterns is built by
+					<code>aludra/compose-page</code>, which inlines the pattern markup so the page stays valid in the editor.
+					Text personalization is skipped for those pages. Mixed pages are built as before.
+				</p>
+				<?php submit_button( 'Save', 'secondary', 'submit', false ); ?>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
 	 * Renders the status indicator notices at the top of the admin page.
 	 *
 	 * @param bool $ai_available      Whether the WP AI Client function exists.
@@ -329,7 +367,7 @@ class Admin {
 				</span>
 			</div>
 			<div class="notice notice-success" style="margin:0;flex:1;min-width:180px;padding:8px 12px">
-				<strong>✓ Elayne Patterns</strong>
+				<strong>✓ Patterns</strong>
 				<span style="color:#666;font-size:12px;display:block">
 					<?php echo count( Pattern_Lab::get_patterns() ); ?> patterns registered
 				</span>

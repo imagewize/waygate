@@ -38,7 +38,7 @@ All classes live in `includes/` with PSR-4 autoloading (`Imagewize\Waygate` → 
 
 ### Class Responsibilities
 
-**`Pattern_Lab`** (`includes/class-pattern-lab.php`) — The data layer. Queries WordPress's registered block patterns to extract those belonging to the active Elayne theme, returning structured metadata (slug, title, description, categories, keywords). Also handles composing `wp:pattern` blocks into a page and calling `wp_insert_post`.
+**`Pattern_Lab`** (`includes/class-pattern-lab.php`) — The data layer. Queries WordPress's registered block patterns to extract those belonging to the active Elayne theme, returning structured metadata (slug, title, description, categories, keywords). Also handles composing `wp:pattern` blocks into a page and calling `wp_insert_post`. With the `waygate_use_aludra` option on and Aludra's `aludra/compose-page` ability registered (`use_aludra()`), Aludra patterns are offered too, and `create_page()` hands a page made only of Aludra patterns to that ability (`aludra_sections()`, `create_page_with_aludra()`). Registry entries are read by `name`: plugin patterns have no `slug` key.
 
 **`Abilities_API`** (`includes/class-abilities-api.php`) — Registers two WordPress Abilities (WP 7.0+ feature):
 - `waygate/list-patterns` — lists available patterns, optionally filtered by category; requires `edit_posts`

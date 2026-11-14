@@ -4,7 +4,7 @@ Tags: patterns, page-builder, ai, block-theme, gutenberg
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,10 @@ AI page generation requires a running provider configured through WordPress 7.0'
 
 Yes, in the sense that it works with any block theme that registers its own block patterns. Waygate discovers patterns registered under a configurable prefix (`elayne/` by default, filterable via `waygate_pattern_prefixes`) and assembles pages from them. Elayne is the primary supported theme and ships the pattern library Waygate is designed around.
 
+= Can I use Aludra patterns too? =
+
+Yes. With the Aludra block library active, turn on **Use Aludra patterns** under Tools → Waygate. Aludra's section patterns are then offered alongside the theme's, and a page built only from Aludra patterns is assembled by Aludra's `aludra/compose-page` ability so it stays valid in the block editor.
+
 = Do I need an AI provider to use this plugin? =
 
 No. The pattern catalog and manual page assembly work without one. AI-driven generation from a natural-language description requires a configured WordPress AI Client provider (Mistral, Claude, OpenAI, or Gemini).
@@ -70,6 +74,11 @@ Yes. Waygate exposes REST endpoints (`GET /wp-json/waygate/v1/patterns`, `POST /
 1. Tools → Waygate admin screen with the pattern catalog and AI generation form
 
 == Changelog ==
+
+= 1.2.0 =
+* Added: "Use Aludra patterns" setting on Tools → Waygate. With the Aludra plugin active, its section patterns are offered too, and a page built only from Aludra patterns is assembled by `aludra/compose-page` so it stays valid in the editor
+* Fixed: the server abilities never registered (unregistered ability category); they are now `waygate/list-patterns` and `waygate/create-page`
+* Fixed: patterns registered by plugins were never listed
 
 = 1.1.0 =
 * Added: `wp waygate build <map.json>` builds pages from a JSON map of pattern slugs without AI, with `--dry-run` and `--references`; `wp waygate list` lists patterns by vertical or page sections
@@ -104,6 +113,9 @@ limit WordPress.org enforces. The complete history is in CHANGELOG.md:
 https://github.com/imagewize/waygate/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+Fixes the abilities, now named waygate/list-patterns and waygate/create-page, lists plugin-registered patterns, and adds optional Aludra pattern support.
 
 = 1.1.0 =
 Adds WP-CLI build and list commands and vertical scoping for AI pages, and fixes stripped backslashes in created pages. No breaking changes.
