@@ -451,7 +451,7 @@ class AI_Integration {
 	public static function generate_page( string $description, bool $personalize_text = true, string $vertical = '' ): array {
 		// Two AI calls of up to request_timeout() each can outlast PHP's limit on a web request.
 		if ( function_exists( 'set_time_limit' ) ) {
-			set_time_limit( (int) ceil( 2 * self::request_timeout() ) + 60 );
+			set_time_limit( (int) ceil( 2 * self::request_timeout() ) + 60 ); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- two AI calls can outlast the default limit.
 		}
 
 		$patterns = self::get_candidate_patterns( $vertical );
