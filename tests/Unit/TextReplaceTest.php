@@ -42,6 +42,15 @@ HTML;
 		$this->assertSame( [ 'A', 'B' ], Text_Replace::texts( '<p>A</p><!-- note --><p> A </p><p>B</p>' ) );
 	}
 
+	public function test_layout_attributes_are_not_copy(): void {
+		$markup = '<!-- wp:column {"width":"58%","verticalAlignment":"top","borderColor":"border-light"} --><div class="wp-block-column"></div><!-- /wp:column -->'
+			. '<!-- wp:cover {"overlayColor":"primary","contentPosition":"center left","minHeightUnit":"px","alt":"Harbor at sunset"} --><div class="wp-block-cover"></div><!-- /wp:cover -->'
+			. '<!-- wp:social-link {"service":"instagram","iconColorValue":"#fff"} /-->'
+			. '<!-- wp:imagewize/stat {"value":"20","ratio":"3/4","label":"Years"} /-->';
+
+		$this->assertSame( [ 'Harbor at sunset', 'Years' ], Text_Replace::texts( $markup ) );
+	}
+
 	public function test_apply_replaces_whole_runs_and_escapes(): void {
 		$out = Text_Replace::apply( self::MARKUP, [ 'Fast Sites.' => 'Fish & <Chips>', 'Real Results.' => 'Fair prices.' ], [] );
 

@@ -58,7 +58,27 @@ class Text_Replace {
 		'engine',
 		'layoutMode',
 		'menuSlug',
+		'width',
+		'height',
+		'scale',
+		'size',
+		'kind',
+		'type',
+		'term',
+		'service',
+		'icon',
+		'overlayMenu',
 	);
+
+	/**
+	 * Attribute name endings that mark structure: colours, units, alignment, positions, ratios.
+	 */
+	private const STRUCTURAL_SUFFIX = '/(Color|ColorValue|Unit|Alignment|Position|Ratio)$/';
+
+	/**
+	 * Values that are never copy: CSS lengths, hex colours and ratios such as 3/4.
+	 */
+	private const STRUCTURAL_VALUE = '/^\s*(-?\d+(\.\d+)?(px|%|em|rem|vh|vw|ch)?|#[0-9a-f]{3,8}|\d+\s*\/\s*\d+)\s*$/i';
 
 	/**
 	 * Block attributes that hold a link target.
@@ -223,7 +243,9 @@ class Text_Replace {
 	public static function is_text_attr( string $key, $value ): bool {
 		return is_string( $value )
 			&& '' !== trim( $value )
-			&& ! in_array( $key, self::STRUCTURAL_ATTRS, true );
+			&& ! in_array( $key, self::STRUCTURAL_ATTRS, true )
+			&& ! preg_match( self::STRUCTURAL_SUFFIX, $key )
+			&& ! preg_match( self::STRUCTURAL_VALUE, $value );
 	}
 
 	/**
