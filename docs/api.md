@@ -67,6 +67,7 @@ curl -u "user:application password" -X POST https://example.com/wp-json/waygate/
 | `waygate_verticals` | `food-beverage`, `legal`, `plumbing`, `salon`, `spa` | Vertical slugs for the Vertical select |
 | `waygate_structural_categories` | header, footer and page categories | Categories never offered as page sections |
 | `waygate_prompt_templates` | six templates | Quick templates on Tools → Waygate |
+| `waygate_ai_request_timeout` | `120` | Seconds Waygate waits for each AI answer |
 | `waygate_rate_limit` | `10` | Page creations per user per minute over REST |
 
 Using Waygate with another theme:
