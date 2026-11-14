@@ -69,6 +69,25 @@ class CliTest extends TestCase {
 		);
 	}
 
+	public function test_section_stub_pairs_every_text_and_link_with_itself(): void {
+		$stub = CLI::section_stub(
+			[
+				'slug'  => 'elayne/hero',
+				'texts' => [ 'Built for', 'Call us' ],
+				'links' => [ '/contact' ],
+			]
+		);
+
+		$this->assertSame(
+			[
+				'pattern' => 'elayne/hero',
+				'texts'   => [ [ 'find' => 'Built for', 'replace' => 'Built for' ], [ 'find' => 'Call us', 'replace' => 'Call us' ] ],
+				'links'   => [ [ 'find' => '/contact', 'replace' => '/contact' ] ],
+			],
+			$stub
+		);
+	}
+
 	#[DataProvider( 'invalid_maps' )]
 	public function test_parse_map_rejects_invalid_maps( string $json, string $expected ): void {
 		$result = CLI::parse_map( $json );
