@@ -76,40 +76,77 @@ class AiIntegrationTest extends TestCase {
 		$this->assertStringContainsString( '[industry]', $templates['homepage']['prompt'] );
 	}
 
-	// --- rewrite_pattern_texts() ---
+	// --- text pairs ---
 
-	public function test_rewrite_pattern_texts_returns_empty_array_for_no_slugs(): void {
-		$result = AI_Integration::rewrite_pattern_texts( [], 'coffee shop' );
-
-		$this->assertSame( [], $result );
+	private function register_hero(): void {
+		WP_Block_Patterns_Registry::get_instance()->register(
+			[
+				'slug'    => 'elayne/hero',
+				'title'   => 'Hero',
+				'content' => '<!-- wp:heading --><h1>Built for <em>families</em>.</h1><!-- /wp:heading --><p>3,600+</p><p><a href="/contact">Call us</a></p>',
+			]
+		);
 	}
 
-	public function test_rewrite_pattern_texts_returns_empty_array_when_patterns_have_no_content(): void {
-		// Slugs provided but patterns registered without a content field.
-		WP_Block_Patterns_Registry::get_instance()->register( [ 'slug' => 'elayne/hero', 'title' => 'Hero' ] );
+	public function test_rewritable_texts_leaves_out_numbers_and_punctuation(): void {
+		$this->register_hero();
 
-		$result = AI_Integration::rewrite_pattern_texts( [ 'elayne/hero' ], 'coffee shop' );
-
-		$this->assertSame( [], $result );
+		$this->assertSame(
+			[ 'elayne/hero' => [ 'Built for', 'families', 'Call us' ] ],
+			AI_Integration::rewritable_texts( [ 'elayne/hero', 'elayne/missing' ] )
+		);
 	}
 
-	public function test_rewrite_pattern_texts_returns_empty_array_when_slugs_not_registered(): void {
-		$result = AI_Integration::rewrite_pattern_texts( [ 'elayne/nonexistent' ], 'coffee shop' );
+	public function test_pairs_prompt_numbers_each_text(): void {
+		$prompt = AI_Integration::pairs_prompt( [ 'elayne/hero' => [ 'Built for', "two\nlines" ] ], 'carpenter' );
 
-		$this->assertSame( [], $result );
+		$this->assertStringContainsString( "Theme/topic: carpenter", $prompt );
+		$this->assertStringContainsString( "=== elayne/hero ===\n0: Built for\n1: two lines\n", $prompt );
 	}
 
-	public function test_rewrite_pattern_texts_returns_empty_array_when_ai_unavailable(): void {
-		// wp_ai_client_prompt doesn't exist in the test environment.
-		// The Error thrown by calling an undefined function is caught by \Throwable.
-		WP_Block_Patterns_Registry::get_instance()->register( [
-			'slug'    => 'elayne/hero',
-			'title'   => 'Hero',
-			'content' => '<!-- wp:heading --><h1>Hello</h1><!-- /wp:heading -->',
-		] );
+	public function test_sections_from_response_maps_numbers_to_exact_finds(): void {
+		$texts = [ 'elayne/hero' => [ 'Built for', 'families', 'Call us' ] ];
+		$data  = [
+			'elayne/hero'  => [
+				[ 'n' => 2, 'text' => 'Plan a visit' ],
+				[ 'n' => 1, 'text' => ' oak and pine ' ],
+				[ 'n' => 1, 'text' => 'duplicate, dropped' ],
+				[ 'n' => 0, 'text' => 'Built for' ],
+				[ 'n' => 9, 'text' => 'out of range' ],
+				[ 'n' => '0', 'text' => '' ],
+				[ 'text' => 'no number' ],
+				'not an item',
+			],
+			'elayne/other' => [ [ 'n' => 0, 'text' => 'not on the page' ] ],
+		];
 
-		$result = AI_Integration::rewrite_pattern_texts( [ 'elayne/hero' ], 'coffee shop' );
+		$this->assertSame(
+			[
+				[
+					'pattern' => 'elayne/hero',
+					'texts'   => [
+						[ 'find' => 'families', 'replace' => 'oak and pine' ],
+						[ 'find' => 'Call us', 'replace' => 'Plan a visit' ],
+					],
+				],
+				'elayne/cta',
+			],
+			AI_Integration::sections_from_response( [ 'elayne/hero', 'elayne/cta' ], $texts, $data )
+		);
+	}
 
-		$this->assertSame( [], $result );
+	public function test_sections_from_response_keeps_slugs_on_garbage(): void {
+		$this->assertSame( [ 'elayne/hero' ], AI_Integration::sections_from_response( [ 'elayne/hero' ], [], 'nope' ) );
+	}
+
+	public function test_personalize_sections_empty_without_texts(): void {
+		$this->assertSame( [], AI_Integration::personalize_sections( [ 'elayne/nonexistent' ], 'carpenter' ) );
+	}
+
+	public function test_personalize_sections_empty_when_ai_unavailable(): void {
+		// wp_ai_client_prompt doesn't exist here; the Error is caught.
+		$this->register_hero();
+
+		$this->assertSame( [], AI_Integration::personalize_sections( [ 'elayne/hero' ], 'carpenter' ) );
 	}
 }

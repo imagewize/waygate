@@ -210,7 +210,7 @@ class Admin {
 										>
 										Rewrite pattern text to match my description
 									</label>
-									<p class="description">The AI will customize headings, paragraphs, and button labels to fit your topic. Adds a second AI call — uncheck for faster generation with original placeholder text.</p>
+									<p class="description">The AI rewrites headings, paragraphs and button labels for your topic. Only text is swapped, so the page keeps the patterns' markup and stays valid in the editor. Adds a second AI call; uncheck for faster generation with the original pattern text.</p>
 								</td>
 							</tr>
 						</table>
@@ -312,7 +312,7 @@ class Admin {
 				<p class="description">
 					Offer Aludra's section patterns alongside the theme's. A page made only of Aludra patterns is built by
 					<code>aludra/compose-page</code>, which inlines the pattern markup so the page stays valid in the editor.
-					Text personalization is skipped for those pages. Mixed pages are built as before.
+					Mixed pages are built as before.
 				</p>
 				<?php submit_button( 'Save', 'secondary', 'submit', false ); ?>
 			</form>
@@ -404,6 +404,11 @@ class Admin {
 			<p style="margin:0 0 6px;font-size:12px;color:#555">
 				<strong>AI reasoning:</strong> <?php echo esc_html( $result['reasoning'] ); ?>
 			</p>
+			<?php if ( ! empty( $result['warnings'] ) ) : ?>
+			<p style="margin:0 0 6px;font-size:12px;color:#8a6d00">
+				<strong>Not replaced:</strong> <?php echo esc_html( implode( ' ', $result['warnings'] ) ); ?>
+			</p>
+			<?php endif; ?>
 			<?php if ( self::is_dev() ) : ?>
 			<p style="margin:0 0 6px;font-size:12px;color:#888">
 				<strong>Patterns (dev):</strong> <?php echo esc_html( implode( ' → ', $result['patterns'] ) ); ?>

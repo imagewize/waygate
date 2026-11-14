@@ -121,33 +121,130 @@ class AI_Integration {
 	}
 
 	/**
-	 * Rewrite visible text inside pattern block markup to match a given theme.
+	 * The texts of each pattern the AI may rewrite: every replaceable text with at least one
+	 * letter. Numbers and punctuation are left out, so the AI cannot invent statistics.
 	 *
-	 * Makes one AI call that receives all selected patterns' raw block content and returns
-	 * the same markup with headings, paragraphs, and button labels rewritten to be
-	 * on-topic. Block comments, HTML tags, attributes, and class names are preserved.
-	 *
-	 * @param string[] $slugs  Ordered list of validated pattern slugs.
-	 * @param string   $theme  The user's original page description (used as the theme).
-	 * @return array<string,string> Map of slug → rewritten block content. Empty on failure.
+	 * @param string[] $slugs Ordered, validated pattern slugs.
+	 * @return array<string,string[]> Slug => texts, numbered from 0. Patterns without texts are left out.
 	 */
-	public static function rewrite_pattern_texts( array $slugs, string $theme ): array {
-		$pattern_contents = array();
+	public static function rewritable_texts( array $slugs ): array {
+		$out = array();
 
 		foreach ( $slugs as $slug ) {
-			$content = Pattern_Lab::get_pattern_content( $slug );
-			if ( '' !== $content ) {
-				$pattern_contents[ $slug ] = $content;
+			$pattern = Pattern_Lab::get_pattern( $slug );
+			$texts   = array_values( array_filter( $pattern['texts'] ?? array(), fn( string $t ): bool => (bool) preg_match( '/\p{L}/u', $t ) ) );
+
+			if ( ! empty( $texts ) ) {
+				$out[ $slug ] = $texts;
 			}
 		}
 
-		if ( empty( $pattern_contents ) ) {
+		return $out;
+	}
+
+	/**
+	 * The user prompt for the rewrite call: the topic, then each pattern's texts as numbered lines.
+	 *
+	 * @param array<string,string[]> $texts_by_slug From rewritable_texts().
+	 * @param string                 $theme         The user's page description.
+	 * @return string
+	 */
+	public static function pairs_prompt( array $texts_by_slug, string $theme ): string {
+		$prompt = "Theme/topic: {$theme}\n\nRewrite the texts of these WordPress block patterns for this theme.\n\n";
+
+		foreach ( $texts_by_slug as $slug => $texts ) {
+			$prompt .= "=== {$slug} ===\n";
+			foreach ( $texts as $n => $text ) {
+				$prompt .= $n . ': ' . str_replace( array( "\r", "\n" ), ' ', $text ) . "\n";
+			}
+			$prompt .= "\n";
+		}
+
+		return $prompt;
+	}
+
+	/**
+	 * Turn the AI's rewrite answer into page sections with text pairs.
+	 *
+	 * The AI answers per slug with {n, text} items, n being a line number from pairs_prompt().
+	 * Numbers map back to the exact texts, so a find string is never mistyped. Unknown slugs,
+	 * out-of-range or repeated numbers, empty texts and unchanged texts are dropped.
+	 *
+	 * @param string[]               $slugs         Ordered page slugs.
+	 * @param array<string,string[]> $texts_by_slug From rewritable_texts().
+	 * @param mixed                  $data          Decoded AI response.
+	 * @return array<int,string|array> Sections for Pattern_Lab::create_page(); a plain slug where
+	 *                                 nothing is replaced.
+	 */
+	public static function sections_from_response( array $slugs, array $texts_by_slug, $data ): array {
+		$sections = array();
+
+		foreach ( $slugs as $slug ) {
+			$texts = $texts_by_slug[ $slug ] ?? array();
+			$items = is_array( $data ) && isset( $data[ $slug ] ) && is_array( $data[ $slug ] ) ? $data[ $slug ] : array();
+			$pairs = array();
+
+			foreach ( $items as $item ) {
+				if ( ! is_array( $item ) || ! isset( $item['n'], $item['text'] ) || ! is_numeric( $item['n'] ) || ! is_string( $item['text'] ) ) {
+					continue;
+				}
+
+				$n    = (int) $item['n'];
+				$text = trim( $item['text'] );
+
+				if ( ! isset( $texts[ $n ] ) || isset( $pairs[ $n ] ) || '' === $text || $text === $texts[ $n ] ) {
+					continue;
+				}
+
+				$pairs[ $n ] = array(
+					'find'    => $texts[ $n ],
+					'replace' => $text,
+				);
+			}
+
+			ksort( $pairs );
+
+			$sections[] = empty( $pairs ) ? $slug : array(
+				'pattern' => $slug,
+				'texts'   => array_values( $pairs ),
+			);
+		}
+
+		return $sections;
+	}
+
+	/**
+	 * Ask the AI to rewrite the selected patterns' texts for a topic, as find/replace pairs.
+	 *
+	 * Only text is replaced, through the same exact-match pairs as waygate/create-page, so the
+	 * page keeps the patterns' markup and stays valid in the editor. Works for Aludra patterns
+	 * too, since the pairs are passed on to aludra/compose-page.
+	 *
+	 * @param string[] $slugs Ordered list of validated pattern slugs.
+	 * @param string   $theme The user's page description.
+	 * @return array<int,string|array> Sections for Pattern_Lab::create_page(). Empty on failure.
+	 */
+	public static function personalize_sections( array $slugs, string $theme ): array {
+		$texts_by_slug = self::rewritable_texts( $slugs );
+
+		if ( empty( $texts_by_slug ) ) {
 			return array();
 		}
 
+		$item       = array(
+			'type'       => 'object',
+			'properties' => array(
+				'n'    => array( 'type' => 'integer' ),
+				'text' => array( 'type' => 'string' ),
+			),
+			'required'   => array( 'n', 'text' ),
+		);
 		$properties = array();
-		foreach ( array_keys( $pattern_contents ) as $slug ) {
-			$properties[ $slug ] = array( 'type' => 'string' );
+		foreach ( array_keys( $texts_by_slug ) as $slug ) {
+			$properties[ $slug ] = array(
+				'type'  => 'array',
+				'items' => $item,
+			);
 		}
 
 		$schema = array(
@@ -156,26 +253,19 @@ class AI_Integration {
 			'required'   => array_keys( $properties ),
 		);
 
-		$patterns_block = '';
-		foreach ( $pattern_contents as $slug => $content ) {
-			$patterns_block .= "=== {$slug} ===\n{$content}\n\n";
-		}
-
-		$prompt = "Theme/topic: {$theme}\n\n"
-			. "Rewrite the text content in the WordPress block patterns below to match this theme.\n\n"
-			. $patterns_block;
-
-		$system = "You are rewriting text content inside WordPress block patterns.\n\n"
+		$system = "You rewrite the visible texts of WordPress block patterns for a new topic.\n\n"
+			. "Each pattern lists its texts as numbered lines (\"n: text\").\n"
 			. "Rules:\n"
-			. "- Keep ALL WordPress block comment markup (<!-- wp:... --> and <!-- /wp:... -->) EXACTLY as-is\n"
-			. "- Keep ALL HTML tags, attributes, class names, and IDs EXACTLY as-is\n"
-			. "- Only replace visible text content between opening and closing HTML tags\n"
-			. "- Make replacement text relevant and specific to the given theme/topic\n"
-			. "- Keep text length proportional to the original (do not add extra paragraphs)\n"
-			. '- Return a JSON object: keys are the pattern slugs (from the === slug === headers), values are the complete rewritten block content strings';
+			. "- Answer with a JSON object: one key per pattern slug, each an array of {\"n\": line number, \"text\": new text}\n"
+			. "- Only include lines you change; leave out lines that already fit\n"
+			. "- Plain text only, no HTML or Markdown\n"
+			. "- Keep each text about as long as the original, and keep its role: a button label stays a short label, a form field label stays a field label\n"
+			. "- Consecutive lines can be parts of one sentence split by emphasis (e.g. \"Built for\", \"families\", \".\"); rewrite the parts so the joined sentence reads naturally\n"
+			. "- Do not invent facts such as prices, years, awards or client names\n"
+			. '- Write in the language of the topic description';
 
 		try {
-			$raw = wp_ai_client_prompt( $prompt )
+			$raw = wp_ai_client_prompt( self::pairs_prompt( $texts_by_slug, $theme ) )
 				->using_system_instruction( $system )
 				->as_json_response( $schema )
 				->using_model_preference( ...self::get_model_preferences() )
@@ -189,7 +279,8 @@ class AI_Integration {
 		}
 
 		$data = json_decode( $raw, true );
-		return is_array( $data ) ? $data : array();
+
+		return is_array( $data ) ? self::sections_from_response( $slugs, $texts_by_slug, $data ) : array();
 	}
 
 	/**
@@ -240,11 +331,11 @@ class AI_Integration {
 	 * Ask the AI to select patterns and assemble a draft page.
 	 *
 	 * @param string $description      Natural-language description of the desired page.
-	 * @param bool   $personalize_text When true, a second AI call rewrites the text content
-	 *                                 of each selected pattern to match the description's theme.
+	 * @param bool   $personalize_text When true, a second AI call rewrites the selected patterns'
+	 *                                 texts for the description, as find/replace pairs.
 	 * @param string $vertical         Optional vertical slug (e.g. "legal"); limits the choice to that
 	 *                                 vertical's patterns when it has at least three page sections.
-	 * @return array{title:string,patterns:string[],pattern_count:int,reasoning:string,personalized:bool,edit_url:string,view_url:string}|array{error:string}
+	 * @return array{title:string,patterns:string[],pattern_count:int,reasoning:string,personalized:bool,warnings:string[],edit_url:string,view_url:string}|array{error:string}
 	 */
 	public static function generate_page( string $description, bool $personalize_text = true, string $vertical = '' ): array {
 		$patterns = self::get_candidate_patterns( $vertical );
@@ -324,27 +415,19 @@ class AI_Integration {
 
 		$page_title   = $data['title'] ?? $description;
 		$personalized = false;
+		$sections     = $slugs;
+		$warnings     = array();
 
-		// Rewritten markup would bypass aludra/compose-page, which keeps Aludra pages valid in
-		// the editor, so an all-Aludra page keeps its pattern text.
-		$aludra_page = Pattern_Lab::use_aludra() && null !== Pattern_Lab::aludra_sections( $slugs );
+		if ( $personalize_text ) {
+			$rewritten = self::personalize_sections( $slugs, $description );
 
-		if ( $personalize_text && ! $aludra_page ) {
-			$rewritten = self::rewrite_pattern_texts( $slugs, $description );
-
-			if ( ! empty( $rewritten ) ) {
-				$block_contents = array();
-				foreach ( $slugs as $slug ) {
-					$block_contents[] = $rewritten[ $slug ] ?? Pattern_Lab::get_pattern_content( $slug );
-				}
-				$post_id      = Pattern_Lab::create_page_from_content( $page_title, $block_contents, 'draft' );
+			if ( array_filter( $rewritten, 'is_array' ) ) {
+				$sections     = $rewritten;
 				$personalized = true;
-			} else {
-				$post_id = Pattern_Lab::create_page( $page_title, $slugs, 'draft' );
 			}
-		} else {
-			$post_id = Pattern_Lab::create_page( $page_title, $slugs, 'draft' );
 		}
+
+		$post_id = Pattern_Lab::create_page( $page_title, $sections, 'draft', $warnings );
 
 		if ( is_wp_error( $post_id ) ) {
 			return array( 'error' => $post_id->get_error_message() );
@@ -363,6 +446,7 @@ class AI_Integration {
 			'pattern_count' => count( $slugs ),
 			'reasoning'     => $reasoning,
 			'personalized'  => $personalized,
+			'warnings'      => $warnings,
 			'edit_url'      => get_edit_post_link( $post_id, 'raw' ),
 			'view_url'      => get_permalink( $post_id ),
 		);
