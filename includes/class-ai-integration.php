@@ -325,7 +325,11 @@ class AI_Integration {
 		$page_title   = $data['title'] ?? $description;
 		$personalized = false;
 
-		if ( $personalize_text ) {
+		// Rewritten markup would bypass aludra/compose-page, which keeps Aludra pages valid in
+		// the editor, so an all-Aludra page keeps its pattern text.
+		$aludra_page = Pattern_Lab::use_aludra() && null !== Pattern_Lab::aludra_sections( $slugs );
+
+		if ( $personalize_text && ! $aludra_page ) {
 			$rewritten = self::rewrite_pattern_texts( $slugs, $description );
 
 			if ( ! empty( $rewritten ) ) {

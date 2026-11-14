@@ -66,6 +66,21 @@ function wp_insert_post( array $args, bool $wp_error = false ): int|WP_Error {
 	return 1;
 }
 
+$GLOBALS['wp_options']   = [];
+$GLOBALS['wp_abilities'] = [];
+
+function get_option( string $name, mixed $default = false ): mixed {
+	return $GLOBALS['wp_options'][ $name ] ?? $default;
+}
+
+function wp_has_ability( string $name ): bool {
+	return isset( $GLOBALS['wp_abilities'][ $name ] );
+}
+
+function wp_get_ability( string $name ): ?object {
+	return $GLOBALS['wp_abilities'][ $name ] ?? null;
+}
+
 function current_user_can( string $capability ): bool {
 	return true;
 }
