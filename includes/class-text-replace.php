@@ -68,17 +68,20 @@ class Text_Replace {
 		'service',
 		'icon',
 		'overlayMenu',
+		'imageSizing',
 	);
 
 	/**
-	 * Attribute name endings that mark structure: colours, units, alignment, positions, ratios.
+	 * Attribute name endings that mark structure: colours, units, alignment, positions, ratios,
+	 * style and class names.
 	 */
-	private const STRUCTURAL_SUFFIX = '/(Color|ColorValue|Unit|Alignment|Position|Ratio)$/';
+	private const STRUCTURAL_SUFFIX = '/(Color|ColorValue|Unit|Alignment|Position|Ratio|Style|Class)$/';
 
 	/**
-	 * Values that are never copy: CSS lengths, hex colours and ratios such as 3/4.
+	 * Values that are never copy: CSS lengths with a unit and hex colours. Bare numbers and
+	 * percentages are left alone, since a stat such as "-71%" is copy.
 	 */
-	private const STRUCTURAL_VALUE = '/^\s*(-?\d+(\.\d+)?(px|%|em|rem|vh|vw|ch)?|#[0-9a-f]{3,8}|\d+\s*\/\s*\d+)\s*$/i';
+	private const STRUCTURAL_VALUE = '/^\s*(-?\d+(\.\d+)?(px|em|rem|vh|vw|ch)|#[0-9a-f]{3,8})\s*$/i';
 
 	/**
 	 * Block attributes that hold a link target.
