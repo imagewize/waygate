@@ -489,7 +489,8 @@ class Pattern_Lab {
 	/**
 	 * Create a WordPress page from pre-rendered block content strings.
 	 *
-	 * Used when pattern text has been personalised by AI before page assembly.
+	 * The markup is not checked against any pattern; prefer create_page() with text pairs, which
+	 * keeps the patterns' markup valid in the editor.
 	 *
 	 * @param string   $title         Page title.
 	 * @param string[] $block_contents Ordered list of raw block markup strings.

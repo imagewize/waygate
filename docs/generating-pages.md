@@ -35,10 +35,29 @@ Built-in verticals: `food-beverage`, `legal`, `plumbing`, `salon`, `spa`. Add yo
 
 ## Text rewriting
 
-With rewriting on, a second AI call rewrites the headings, paragraphs and button labels inside the
-chosen patterns to fit your description. The page then stores the rewritten markup instead of
-pattern references. Rewritten markup comes from the AI, so open the draft in the editor and check
-it before publishing.
+With rewriting on, a second AI call rewrites the headings, paragraphs, button labels and form
+labels of the chosen patterns to fit your description. The AI never sees or writes markup: it
+gets each pattern's texts as numbered lines and answers with new text per line number. Waygate
+turns that into the same find/replace pairs `waygate/create-page` takes (see
+[Replacing text and links](api.md#replacing-text-and-links)), so the page keeps the patterns'
+markup and stays valid in the editor.
+
+- Texts without a letter, such as `3,600+` or `20+`, are not offered, so the AI cannot invent
+  statistics. Neither are people's names and initials ("Sarah J.", "SJ"), so testimonials keep
+  their placeholder reviewers. Change them in the editor.
+- A new text that adds, drops or changes a phone number or email address is rejected, so the
+  pattern's placeholder contact details stay until you replace them.
+- Answers for line numbers that don't exist, repeated lines and unchanged texts are dropped.
+- The text is written in the language of your description, even when it names a place where
+  another language is spoken.
+- The rewrite asks fast models first (`mistral-small-latest`, `claude-haiku-4-5`,
+  `gemini-2.0-flash`): a large model can take minutes for a whole page. Waygate waits up to 120
+  seconds per AI call (`waygate_ai_request_timeout` filter).
+- If the text could not be rewritten, the page is still created with the patterns' text and the
+  notice says why.
+- Links and images keep the patterns' values.
+- The pairs are stored as inlined pattern content, not `wp:pattern` references. Read the draft
+  before publishing: the copy is the AI's.
 
 ## After generation
 
@@ -56,5 +75,5 @@ Tools → Waygate (`waygate_use_aludra` option). When it is on:
   header, footer and mega-menu patterns are not.
 - A page made **only** of Aludra patterns is built by `aludra/compose-page`, which inlines the
   pattern markup and refuses a pattern that uses a block disabled under Settings → Aludra. Text
-  rewriting is skipped for these pages, because rewritten markup would bypass that.
+  rewriting works for these pages too: the pairs are passed on to `aludra/compose-page`.
 - A page that mixes theme and Aludra patterns is built as before, from `wp:pattern` references.

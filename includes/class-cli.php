@@ -1,6 +1,6 @@
 <?php
 /**
- * WP-CLI commands: build pages from a pattern map and list patterns.
+ * WP-CLI commands: build pages from a pattern map, list patterns and show a pattern's texts.
  *
  * @package Imagewize\Waygate
  */
@@ -10,7 +10,8 @@ namespace Imagewize\Waygate;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Builds pages from patterns without AI, and lists the pattern catalog.
+ * Builds pages from patterns without AI, lists the pattern catalog and shows a pattern's
+ * replaceable texts and links.
  */
 class CLI {
 
@@ -185,6 +186,99 @@ class CLI {
 		if ( $failed > 0 ) {
 			\WP_CLI::error( "{$failed} page(s) failed." );
 		}
+	}
+
+	/**
+	 * A build-map section for a pattern, with every text and link as a pair whose replace
+	 * equals its find: ready to edit.
+	 *
+	 * @param array $pattern From Pattern_Lab::get_pattern().
+	 * @return array{pattern:string,texts:array[],links:array[]}
+	 */
+	public static function section_stub( array $pattern ): array {
+		$pair = fn( string $value ): array => array(
+			'find'    => $value,
+			'replace' => $value,
+		);
+
+		return array(
+			'pattern' => $pattern['slug'],
+			'texts'   => array_map( $pair, $pattern['texts'] ),
+			'links'   => array_map( $pair, $pattern['links'] ),
+		);
+	}
+
+	/**
+	 * Shows a pattern's replaceable texts and links.
+	 *
+	 * The texts and links are the exact find strings for `texts` and `links` pairs in a build
+	 * map or in waygate/create-page.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <slug>
+	 * : Pattern slug, e.g. elayne/legal-hero-form.
+	 *
+	 * [--stub]
+	 * : Print a build-map section with every text and link as a {find, replace} pair, ready to edit.
+	 *
+	 * [--content]
+	 * : With --format=json, include the pattern's block markup.
+	 *
+	 * [--format=<format>]
+	 * : Output format.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp waygate get elayne/legal-hero-form
+	 *     wp waygate get elayne/legal-hero-form --stub > hero.json
+	 *
+	 * @param string[] $args       Positional arguments.
+	 * @param array    $assoc_args Flags.
+	 */
+	public function get( array $args, array $assoc_args ): void {
+		$pattern = Pattern_Lab::get_pattern( $args[0] );
+
+		if ( null === $pattern ) {
+			\WP_CLI::error( "Unknown pattern: {$args[0]}. Run `wp waygate list` for valid slugs." );
+		}
+
+		$flags = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+
+		if ( \WP_CLI\Utils\get_flag_value( $assoc_args, 'stub', false ) ) {
+			\WP_CLI::line( (string) wp_json_encode( self::section_stub( $pattern ), $flags ) );
+			return;
+		}
+
+		if ( 'json' === \WP_CLI\Utils\get_flag_value( $assoc_args, 'format', 'table' ) ) {
+			if ( ! \WP_CLI\Utils\get_flag_value( $assoc_args, 'content', false ) ) {
+				unset( $pattern['content'] );
+			}
+			\WP_CLI::line( (string) wp_json_encode( $pattern, $flags ) );
+			return;
+		}
+
+		$rows = array();
+		foreach ( array(
+			'text' => $pattern['texts'],
+			'link' => $pattern['links'],
+		) as $type => $values ) {
+			foreach ( $values as $value ) {
+				$rows[] = array(
+					'type'  => $type,
+					'value' => $value,
+				);
+			}
+		}
+
+		\WP_CLI::log( "{$pattern['slug']} — {$pattern['title']}" );
+		\WP_CLI\Utils\format_items( 'table', $rows, array( 'type', 'value' ) );
 	}
 
 	/**
