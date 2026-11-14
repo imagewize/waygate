@@ -5,205 +5,43 @@
 [![Latest Stable Version](https://img.shields.io/packagist/v/imagewize/waygate.svg)](https://packagist.org/packages/imagewize/waygate)
 [![License](https://img.shields.io/packagist/l/imagewize/waygate.svg)](https://packagist.org/packages/imagewize/waygate)
 
-**AI-Powered Pattern Page Builder for Block Themes**
+**Describe a page. Get a draft built from your theme's own patterns.**
 
-Waygate lets you assemble WordPress pages from block patterns — manually or via a natural-language AI prompt powered by the WordPress AI Client (WordPress 7.0+). Works with any block theme; [Elayne](https://github.com/imagewize/elayne) is the primary supported theme.
+## What it is
 
----
+Waygate turns a sentence like *"a homepage for a nail salon with services, prices, reviews and a booking call to action"* into a draft page in the block editor. The AI only picks and orders block patterns your theme already ships, so the result looks like the rest of your site and is ordinary block markup you can edit like any other page.
 
-## Features
+- **Your design, not the AI's.** Pages are assembled from registered patterns. Nothing is drawn from scratch.
+- **On-topic copy.** An optional second pass rewrites headings, paragraphs and button labels for your subject.
+- **Stays in its lane.** Pick a vertical (legal, spa, salon …) so a law firm never gets a spa hero.
+- **Any provider.** Mistral, Claude, OpenAI or Gemini, through the WordPress 7.0 AI Client. Keys can live in `.env`, not the database.
+- **No AI needed.** `wp waygate build` assembles pages from a JSON map, for repeatable demo and staging sites.
+- **Built for agents too.** Abilities API and REST endpoints let external tools list patterns and create pages.
+- **Elayne and Aludra.** Made for the [Elayne](https://github.com/imagewize/elayne) theme; works with any block theme, and can mix in [Aludra](https://github.com/imagewize/aludra) sections.
 
-- **Pattern catalog** — Browse registered block patterns with slug, title, and categories; filter by category
-- **AI page generation** — Describe the page you want; the AI picks patterns and creates a draft
-- **Themed text personalization** — A second AI call rewrites all headings, paragraphs, and button labels inside the selected patterns to match your topic; uncheck the option for a faster single-call result with original placeholder text
-- **AI reasoning** — The AI's one-sentence explanation of its pattern choices is shown after generation and persisted as post meta on the created page
-- **Developer debug info** — When `WP_ENV=development`, the page editor sidebar and the generation notice also show the ordered pattern slugs and generation timestamp
-- **Prompt templates** — Six built-in page templates (Homepage, About, Services, Contact, Landing Page, Portfolio) pre-fill the AI prompt; extend via the `waygate_prompt_templates` filter
-- **Feature detection** — AI form is hidden automatically when no provider supports text generation
-- **Abilities API** — Exposes `waygate/list-patterns` and `waygate/create-page` server abilities plus a `waygate/insert-pattern` client-side ability for the block editor (WP 7.0+)
-- **REST API** — `GET /wp-json/waygate/v1/patterns` and `POST /wp-json/waygate/v1/pages` for headless and external tool integration
-- **Multi-provider** — Works with Mistral, Claude, OpenAI, or Gemini via WP AI Client
-- **Vertical scoping** — Limit the AI to one vertical's patterns (e.g. legal), so a law-firm page doesn't get a spa hero; defaults to the active child theme's vertical
-- **WP-CLI** — `wp waygate build <map.json>` builds pages from a pattern map without AI; `wp waygate list` lists patterns by vertical
-- **Any block theme** — Default prefix is `elayne/`; extend via the `waygate_pattern_prefixes` filter
+## Getting started
 
----
+1. Install with Composer, `composer require imagewize/waygate`, or upload the zip from [Releases](https://github.com/imagewize/waygate/releases).
+2. Connect an AI provider under **Settings → Connectors** (see [AI providers](docs/ai-providers.md)).
+3. Open **Tools → Waygate**, describe the page and click **Generate Page**. Review the draft and publish.
 
-## Requirements
+Requires WordPress 7.0+ and PHP 8.3+.
 
-| Requirement | Version |
-|---|---|
-| PHP | 8.3+ |
-| WordPress | 7.0+ |
-| Block theme | Any; Elayne recommended |
-| WordPress AI Client | 7.0+ (required for AI features) |
+## Documentation
 
----
-
-## Installation
-
-### Option A — Composer (recommended for Bedrock)
-
-```bash
-composer require imagewize/waygate
-```
-
-### Option B — Manual
-
-1. Download the latest release zip from [GitHub Releases](https://github.com/imagewize/waygate/releases)
-2. Upload and activate via **Plugins → Add New → Upload Plugin**
-
----
-
-## Configuration
-
-### AI features (optional)
-
-AI page generation requires a running AI provider. WordPress 7.0+ supports Mistral, Claude (Anthropic), OpenAI, and Gemini via its built-in Connectors system.
-
-**Installing provider plugins** (Bedrock / Composer):
-
-```bash
-composer require wp-plugin/ai-provider-for-mistral
-composer require wp-plugin/ai-provider-for-anthropic
-# OpenAI and Gemini can be installed from Settings → Connectors in the WP admin
-```
-
-**Configuring API keys** — every provider supports two methods; environment variable takes priority over the database:
-
-| Provider | Env var | Admin UI |
-|---|---|---|
-| Mistral | `MISTRAL_API_KEY` in `.env` | Settings → Connectors |
-| Claude (Anthropic) | `ANTHROPIC_API_KEY` in `.env` | Settings → Connectors |
-| OpenAI | `OPENAI_API_KEY` in `.env` | Settings → Connectors |
-| Google (Gemini) | `GOOGLE_API_KEY` in `.env` | Settings → Connectors |
-
-On Bedrock, add the key to your site `.env` and it is picked up automatically. On standard WordPress installs, enter the key directly in **Settings → Connectors** and it is stored in the database.
-
-**Mistral via Composer library** (non-Bedrock, without the WP plugin):
-
-```bash
-composer require saarnilauri/ai-provider-for-mistral
-```
-
-Waygate registers this provider manually since the library distribution excludes `plugin.php`. Set `MISTRAL_API_KEY` as a server environment variable.
-
----
-
-## Usage
-
-1. Go to **Tools → Waygate** in the WordPress admin
-2. Browse registered patterns in the catalog; use the category dropdown to filter
-3. Optionally pick a **Quick template** to pre-fill the description, then customise it
-4. Pick a **Vertical** to limit the AI to that vertical's patterns (defaults to the active child theme's vertical, e.g. `legal` for Elayne Legal)
-5. Check **Rewrite pattern text to match my description** (default: on) to have the AI personalize all headings, paragraphs, and button labels to your topic — uncheck for a faster single-call result with original placeholder text
-6. Click **Generate Page** to create an AI-assembled draft
-7. Open the draft in the block editor, adjust as needed, and publish
-
----
-
-## WP-CLI
-
-Build pages from patterns without AI, for example to rebuild a demo site after a theme change:
-
-```bash
-wp waygate build legal.json --dry-run
-wp waygate build legal.json
-```
-
-The map lists pages and their patterns in order. A page is matched by `id` or `slug`; a slug with no matching page creates a draft. `title`, `template` and `status` (`draft` or `publish`) are optional.
-
-```json
-{
-  "pages": [
-    { "id": 5, "patterns": ["elayne/legal-hero-form", "elayne/legal-departments", "elayne/legal-cta-strip"] },
-    { "slug": "about", "title": "About", "patterns": ["elayne/page-legal-about"] }
-  ]
-}
-```
-
-Content is stored as a fresh block-editor insert would store it: each pattern is inlined and nested `wp:pattern` references are expanded. Pass `--references` to store `wp:pattern` blocks instead. Unknown slugs fail that page and the command exits non-zero.
-
-List patterns to write a map:
-
-```bash
-wp waygate list --vertical=legal --sections
-wp waygate list --format=ids
-```
-
-`--sections` leaves out headers, footers, templates and full-page patterns.
-
-### Aludra patterns (optional)
-
-With the [Aludra](https://github.com/imagewize/aludra) block library active (a release that registers
-its `aludra/compose-page` ability — newer than 2.43.0), Tools → Waygate shows a **Use Aludra patterns** setting
-(`waygate_use_aludra` option). When it is on:
-
-- Aludra's section and carousel patterns are offered alongside the theme's (its whole-page,
-  header, footer and mega-menu patterns are not).
-- A page made **only** of Aludra patterns is built by `aludra/compose-page`, which inlines the
-  pattern markup and refuses a pattern that uses a block disabled under Settings → Aludra. AI text
-  personalization is skipped for these pages, because rewritten markup would bypass that.
-- A page that mixes theme and Aludra patterns is built as before, from `wp:pattern` references.
-
----
-
-## Abilities API (WordPress 7.0+)
-
-When WordPress 7.0's Abilities API is available, Waygate registers three abilities:
-
-| Ability | Type | Description |
-|---|---|---|
-| `waygate/list-patterns` | Server | Returns patterns, optionally filtered by category |
-| `waygate/create-page` | Server | Creates a draft page from an ordered list of pattern slugs |
-| `waygate/insert-pattern` | Client (editor) | Inserts a pattern block at the current cursor position in the block editor |
-
-The client-side ability is registered via `@wordpress/abilities` and is available whenever the block editor is open. Pass a `slug` parameter (e.g. `"elayne/hero-centered"`) to insert any registered pattern.
-
----
-
-## REST API
-
-Waygate exposes two REST endpoints under `/wp-json/waygate/v1/`:
-
-| Method | Endpoint | Permission | Description |
-|---|---|---|---|
-| `GET` | `/patterns` | `edit_posts` | List all registered patterns; optional `?category=hero` filter |
-| `POST` | `/pages` | `publish_pages` | Create a **draft** page from pattern slugs (max 10 req/min per user) |
-
-**Example — list patterns filtered by category:**
-
-```bash
-curl -u admin:password https://example.com/wp-json/waygate/v1/patterns?category=hero
-```
-
-**Example — create a page:**
-
-```bash
-curl -u admin:password -X POST https://example.com/wp-json/waygate/v1/pages \
-  -H "Content-Type: application/json" \
-  -d '{"title":"My Page","patterns":["elayne/hero","elayne/features","elayne/cta"],"status":"draft"}'
-```
-
-Response:
-
-```json
-{ "page_id": 42, "edit_url": "https://example.com/wp-admin/post.php?post=42&action=edit", "view_url": "https://example.com/?page_id=42" }
-```
-
----
-
-## Development
-
-```bash
-git clone https://github.com/imagewize/waygate.git
-cd waygate
-composer install
-vendor/bin/phpunit --configuration phpunit.xml
-```
-
----
+- [Generating pages](docs/generating-pages.md): the Tools → Waygate screen, templates, verticals, text rewriting and Aludra patterns
+- [AI providers](docs/ai-providers.md): installing a provider and where to put its API key
+- [WP-CLI](docs/wp-cli.md): build pages from a pattern map without AI
+- [Developer API](docs/api.md): abilities, REST endpoints, filters and post meta
+- [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## License
 
-GPL-2.0-or-later — see [LICENSE](LICENSE).
+GPL-2.0-or-later. See [LICENSE.md](LICENSE.md).
+
+## Support
+
+Issues and feature requests: https://github.com/imagewize/waygate/issues
+
+Built by [Imagewize](https://github.com/imagewize).
