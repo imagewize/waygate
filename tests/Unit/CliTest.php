@@ -35,6 +35,40 @@ class CliTest extends TestCase {
 		$this->assertSame( 'page-no-title', $pages[1]['template'] );
 	}
 
+	public function test_parse_map_accepts_sections_with_pairs(): void {
+		$pages = CLI::parse_map(
+			json_encode(
+				[
+					'pages' => [
+						[
+							'slug'     => 'home',
+							'patterns' => [
+								[
+									'pattern' => 'aludra/section-hero-split',
+									'texts'   => [ [ 'find' => 'Fast Sites.', 'replace' => 'Good Nails.' ] ],
+								],
+								'elayne/salon-services',
+							],
+						],
+					],
+				]
+			)
+		);
+
+		$this->assertIsArray( $pages );
+		$this->assertSame(
+			[
+				[
+					'pattern' => 'aludra/section-hero-split',
+					'texts'   => [ [ 'find' => 'Fast Sites.', 'replace' => 'Good Nails.' ] ],
+					'links'   => [],
+				],
+				[ 'pattern' => 'elayne/salon-services', 'texts' => [], 'links' => [] ],
+			],
+			$pages[0]['patterns']
+		);
+	}
+
 	#[DataProvider( 'invalid_maps' )]
 	public function test_parse_map_rejects_invalid_maps( string $json, string $expected ): void {
 		$result = CLI::parse_map( $json );
@@ -51,6 +85,8 @@ class CliTest extends TestCase {
 			'no patterns'      => [ '{"pages":[{"id":5}]}', '"patterns" array' ],
 			'bad status'       => [ '{"pages":[{"id":5,"patterns":["elayne/a"],"status":"trash"}]}', 'status' ],
 			'page not object'  => [ '{"pages":["elayne/a"]}', 'must be an object' ],
+			'section no slug'  => [ '{"pages":[{"id":5,"patterns":[{"texts":[]}]}]}', 'pages[0].patterns[0]' ],
+			'bad pair'         => [ '{"pages":[{"id":5,"patterns":[{"pattern":"elayne/a","texts":[{"find":"x"}]}]}]}', 'find' ],
 		];
 	}
 }

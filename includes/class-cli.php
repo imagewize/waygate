@@ -20,6 +20,7 @@ class CLI {
 	 * Format: {"pages":[{"id":5,"patterns":["elayne/legal-hero-form"]},
 	 * {"slug":"about","title":"About","patterns":["elayne/page-legal-about"],"template":"default","status":"draft"}]}
 	 * A page needs an `id` or a `slug`; `title`, `template` and `status` are optional.
+	 * A pattern is a slug, or {"pattern":"elayne/hero","texts":[{"find":"…","replace":"…"}],"links":[…]}.
 	 *
 	 * @param string $json Raw map file contents.
 	 * @return array[]|\WP_Error List of page entries, or WP_Error describing the first problem.
@@ -51,6 +52,15 @@ class CLI {
 				return new \WP_Error( 'invalid_map', "{$label} needs a non-empty \"patterns\" array." );
 			}
 
+			$sections = array();
+			foreach ( array_values( $page['patterns'] ) as $j => $entry ) {
+				$section = Pattern_Lab::normalize_section( $entry );
+				if ( is_wp_error( $section ) ) {
+					return new \WP_Error( 'invalid_map', "{$label}.patterns[{$j}]: " . $section->get_error_message() );
+				}
+				$sections[] = $section;
+			}
+
 			$status = $page['status'] ?? 'draft';
 			if ( ! in_array( $status, array( 'draft', 'publish' ), true ) ) {
 				return new \WP_Error( 'invalid_map', "{$label} status must be \"draft\" or \"publish\"." );
@@ -60,7 +70,7 @@ class CLI {
 				'id'       => $id,
 				'slug'     => $slug,
 				'title'    => isset( $page['title'] ) ? sanitize_text_field( (string) $page['title'] ) : '',
-				'patterns' => array_values( $page['patterns'] ),
+				'patterns' => $sections,
 				'template' => isset( $page['template'] ) ? sanitize_text_field( (string) $page['template'] ) : '',
 				'status'   => $status,
 			);
@@ -70,10 +80,10 @@ class CLI {
 	}
 
 	/**
-	 * Builds pages from a JSON map of pattern slugs, without AI.
+	 * Builds pages from a JSON map of patterns, without AI.
 	 *
 	 * Each page's content is replaced with its patterns' content, as a fresh insert in the
-	 * block editor would store it. Pages found by `id` or `slug` are updated; a `slug` with no
+	 * block editor would store it, with each section's `texts` and `links` pairs applied. Pages found by `id` or `slug` are updated; a `slug` with no
 	 * matching page creates one.
 	 *
 	 * ## OPTIONS
@@ -85,7 +95,8 @@ class CLI {
 	 * : Show what would change without writing.
 	 *
 	 * [--references]
-	 * : Store `wp:pattern` reference blocks instead of inlining the pattern content.
+	 * : Store `wp:pattern` reference blocks instead of inlining the pattern content. Fails a
+	 * page whose sections carry texts or links.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -113,13 +124,19 @@ class CLI {
 		$failed  = 0;
 
 		foreach ( $pages as $page ) {
-			$content = Pattern_Lab::build_content( $page['patterns'], $expand );
-			$label   = $page['id'] > 0 ? "page {$page['id']}" : "page /{$page['slug']}/";
+			$composed = Pattern_Lab::compose( $page['patterns'], $expand );
+			$label    = $page['id'] > 0 ? "page {$page['id']}" : "page /{$page['slug']}/";
 
-			if ( is_wp_error( $content ) ) {
-				\WP_CLI::warning( "{$label}: " . $content->get_error_message() );
+			if ( is_wp_error( $composed ) ) {
+				\WP_CLI::warning( "{$label}: " . $composed->get_error_message() );
 				++$failed;
 				continue;
+			}
+
+			$content = $composed['content'];
+
+			foreach ( $composed['warnings'] as $warning ) {
+				\WP_CLI::warning( "{$label}: {$warning}" );
 			}
 
 			$post = $page['id'] > 0 ? get_post( $page['id'] ) : get_page_by_path( $page['slug'] );
@@ -130,7 +147,7 @@ class CLI {
 				continue;
 			}
 
-			$source = implode( ' + ', $page['patterns'] );
+			$source = implode( ' + ', array_column( $page['patterns'], 'pattern' ) );
 
 			if ( $dry_run ) {
 				$action = $post ? 'update' : 'create';

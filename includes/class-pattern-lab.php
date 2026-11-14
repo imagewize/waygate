@@ -74,26 +74,135 @@ class Pattern_Lab {
 	}
 
 	/**
-	 * Map an ordered slug list to aludra/compose-page sections, when Aludra can build all of it.
+	 * Map an ordered section list to aludra/compose-page sections, when Aludra can build all of it.
 	 *
 	 * Aludra composes only its own patterns, so a page that mixes in any other pattern
-	 * returns null and is built the usual way.
+	 * returns null and is built the usual way. Text and link pairs are passed on unchanged.
 	 *
-	 * @param string[] $slugs Ordered, validated pattern slugs.
+	 * @param array<int,string|array> $sections Ordered, validated pattern slugs or sections
+	 *                                          from normalize_section().
 	 * @return array[]|null Sections for aludra/compose-page, or null.
 	 */
-	public static function aludra_sections( array $slugs ): ?array {
-		if ( empty( $slugs ) ) {
+	public static function aludra_sections( array $sections ): ?array {
+		if ( empty( $sections ) ) {
 			return null;
 		}
 
-		foreach ( $slugs as $slug ) {
-			if ( ! str_starts_with( $slug, 'aludra/' ) ) {
+		$out = array();
+
+		foreach ( $sections as $section ) {
+			$section = is_array( $section ) ? $section : array( 'pattern' => (string) $section );
+
+			if ( ! str_starts_with( $section['pattern'] ?? '', 'aludra/' ) ) {
 				return null;
+			}
+
+			$item = array( 'pattern' => $section['pattern'] );
+			foreach ( array( 'texts', 'links' ) as $key ) {
+				if ( ! empty( $section[ $key ] ) ) {
+					$item[ $key ] = $section[ $key ];
+				}
+			}
+			$out[] = $item;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Validate one page section: a pattern slug, or {pattern, texts?, links?} where texts and
+	 * links are lists of {find, replace} pairs.
+	 *
+	 * @param mixed $entry Section as given in a map or ability input.
+	 * @return array{pattern:string,texts:array[],links:array[]}|\WP_Error
+	 */
+	public static function normalize_section( $entry ) {
+		if ( is_string( $entry ) ) {
+			$entry = array( 'pattern' => $entry );
+		}
+
+		if ( ! is_array( $entry ) || ! isset( $entry['pattern'] ) || ! is_string( $entry['pattern'] ) || '' === $entry['pattern'] ) {
+			return new \WP_Error( 'invalid_section', 'A section must be a pattern slug or an object with a "pattern" slug.' );
+		}
+
+		$section = array(
+			'pattern' => $entry['pattern'],
+			'texts'   => array(),
+			'links'   => array(),
+		);
+
+		foreach ( array( 'texts', 'links' ) as $key ) {
+			if ( ! isset( $entry[ $key ] ) ) {
+				continue;
+			}
+
+			if ( ! is_array( $entry[ $key ] ) || ! array_is_list( $entry[ $key ] ) ) {
+				return new \WP_Error( 'invalid_section', "\"{$key}\" of {$entry['pattern']} must be a list of {\"find\", \"replace\"} pairs." );
+			}
+
+			foreach ( $entry[ $key ] as $pair ) {
+				if ( ! is_array( $pair ) || ! isset( $pair['find'], $pair['replace'] ) || ! is_string( $pair['find'] ) || ! is_string( $pair['replace'] ) ) {
+					return new \WP_Error( 'invalid_section', "\"{$key}\" of {$entry['pattern']} must be a list of {\"find\", \"replace\"} pairs." );
+				}
+
+				$section[ $key ][] = array(
+					'find'    => $pair['find'],
+					'replace' => $pair['replace'],
+				);
 			}
 		}
 
-		return array_map( fn( string $slug ): array => array( 'pattern' => $slug ), array_values( $slugs ) );
+		return $section;
+	}
+
+	/**
+	 * One offered pattern with its markup and the exact texts and links that can be replaced.
+	 *
+	 * @param string $slug Pattern slug.
+	 * @return array|null Pattern data, or null when Waygate does not offer this pattern.
+	 */
+	public static function get_pattern( string $slug ): ?array {
+		foreach ( self::get_patterns() as $pattern ) {
+			if ( $pattern['slug'] !== $slug ) {
+				continue;
+			}
+
+			$content = self::expand_pattern_references( self::get_pattern_content( $slug ) );
+
+			return array_merge(
+				$pattern,
+				array(
+					'content' => $content,
+					'texts'   => Text_Replace::texts( $content ),
+					'links'   => Text_Replace::links( $content ),
+				)
+			);
+		}
+
+		return null;
+	}
+
+	/**
+	 * One section's markup: the pattern inlined, with its text and link pairs applied.
+	 *
+	 * @param array{pattern:string,texts:array[],links:array[]} $section From normalize_section().
+	 * @param int                                               $index   Section position, for warnings.
+	 * @return array{markup:string,warnings:string[]}
+	 */
+	private static function section_markup( array $section, int $index ): array {
+		$content  = self::expand_pattern_references( self::get_pattern_content( $section['pattern'] ) );
+		$texts    = Text_Replace::pairs_to_map( $section['texts'], 'sanitize_text_field' );
+		$links    = Text_Replace::pairs_to_map( $section['links'], 'esc_url_raw' );
+		$warnings = array();
+
+		foreach ( Text_Replace::unmatched( $content, $texts, $links ) as $find ) {
+			$warnings[] = sprintf( 'Section %d (%s): "%s" matched nothing; see waygate/get-pattern for its exact texts and links.', $index, $section['pattern'], $find );
+		}
+
+		return array(
+			'markup'   => Text_Replace::apply( $content, $texts, $links ),
+			'warnings' => $warnings,
+		);
 	}
 
 	/**
@@ -102,12 +211,15 @@ class Pattern_Lab {
 	 * Aludra inlines its pattern markup and refuses patterns that use a block the site has
 	 * disabled, so the page passes block validation when opened in the editor.
 	 *
-	 * @param string  $title    Page title.
-	 * @param array[] $sections Sections from aludra_sections().
-	 * @param string  $status   Post status ('draft' or 'publish').
+	 * @param string        $title    Page title.
+	 * @param array[]       $sections Sections from aludra_sections().
+	 * @param string        $status   Post status ('draft' or 'publish').
+	 * @param string[]|null $warnings Set to compose-page's warnings for find strings that matched nothing.
 	 * @return int|\WP_Error Post ID on success, WP_Error on failure.
 	 */
-	public static function create_page_with_aludra( string $title, array $sections, string $status = 'draft' ) {
+	public static function create_page_with_aludra( string $title, array $sections, string $status = 'draft', ?array &$warnings = null ) {
+		$warnings = array();
+
 		$ability = function_exists( 'wp_has_ability' ) && wp_has_ability( 'aludra/compose-page' )
 			? wp_get_ability( 'aludra/compose-page' )
 			: null;
@@ -131,6 +243,8 @@ class Pattern_Lab {
 		if ( empty( $result['page_id'] ) ) {
 			return new \WP_Error( 'aludra_failed', 'aludra/compose-page returned no page.' );
 		}
+
+		$warnings = array_values( array_map( 'strval', (array) ( $result['warnings'] ?? array() ) ) );
 
 		return (int) $result['page_id'];
 	}
@@ -294,26 +408,46 @@ class Pattern_Lab {
 	}
 
 	/**
-	 * Concatenate the content of an ordered list of registered patterns into page markup.
+	 * Assemble page markup from an ordered list of sections, applying their text and link pairs.
 	 *
-	 * @param string[] $slugs  Ordered pattern slugs. Each must be a registered pattern matching
-	 *                         the waygate_pattern_prefixes filter.
-	 * @param bool     $expand True to inline each pattern's content (nested references expanded),
-	 *                         false to emit `wp:pattern` reference blocks.
-	 * @return string|\WP_Error Block markup, or WP_Error naming the first unknown slug.
+	 * @param array<int,string|array> $sections Ordered pattern slugs or {pattern, texts, links}
+	 *                                          sections. Each pattern must be registered and match
+	 *                                          the waygate_pattern_prefixes filter.
+	 * @param bool                    $expand   True to inline each pattern's content (nested
+	 *                                          references expanded), false to emit `wp:pattern`
+	 *                                          reference blocks, which cannot carry replacements.
+	 * @return array{content:string,warnings:string[]}|\WP_Error Markup plus warnings for find
+	 *                                                          strings that matched nothing.
 	 */
-	public static function build_content( array $slugs, bool $expand = true ) {
+	public static function compose( array $sections, bool $expand = true ) {
 		$registered = array_column( self::get_patterns(), 'slug' );
 		$chunks     = array();
+		$warnings   = array();
 
-		foreach ( $slugs as $slug ) {
-			if ( ! is_string( $slug ) || ! in_array( $slug, $registered, true ) ) {
-				return new \WP_Error( 'unknown_pattern', 'Pattern is not registered: ' . ( is_string( $slug ) ? $slug : gettype( $slug ) ) );
+		foreach ( array_values( $sections ) as $index => $entry ) {
+			$section = self::normalize_section( $entry );
+
+			if ( is_wp_error( $section ) ) {
+				return $section;
 			}
 
-			$chunks[] = $expand
-				? self::expand_pattern_references( self::get_pattern_content( $slug ) )
-				: '<!-- wp:pattern {"slug":"' . esc_attr( $slug ) . '"} /-->';
+			$slug = $section['pattern'];
+
+			if ( ! in_array( $slug, $registered, true ) ) {
+				return new \WP_Error( 'unknown_pattern', 'Pattern is not registered: ' . $slug );
+			}
+
+			if ( ! $expand ) {
+				if ( ! empty( $section['texts'] ) || ! empty( $section['links'] ) ) {
+					return new \WP_Error( 'references_with_replacements', "Pattern references cannot carry texts or links: {$slug}." );
+				}
+				$chunks[] = '<!-- wp:pattern {"slug":"' . esc_attr( $slug ) . '"} /-->';
+				continue;
+			}
+
+			$built    = self::section_markup( $section, $index );
+			$chunks[] = $built['markup'];
+			$warnings = array_merge( $warnings, $built['warnings'] );
 		}
 
 		$content = implode( "\n\n", array_filter( array_map( 'trim', $chunks ) ) );
@@ -322,7 +456,23 @@ class Pattern_Lab {
 			return new \WP_Error( 'no_content', 'The patterns produced no content.' );
 		}
 
-		return $content;
+		return array(
+			'content'  => $content,
+			'warnings' => $warnings,
+		);
+	}
+
+	/**
+	 * Concatenate the content of an ordered list of registered patterns into page markup.
+	 *
+	 * @param array<int,string|array> $sections Ordered pattern slugs or sections, as for compose().
+	 * @param bool                    $expand   As for compose().
+	 * @return string|\WP_Error Block markup, or WP_Error naming the first problem.
+	 */
+	public static function build_content( array $sections, bool $expand = true ) {
+		$composed = self::compose( $sections, $expand );
+
+		return is_wp_error( $composed ) ? $composed : $composed['content'];
 	}
 
 	/**
@@ -369,52 +519,69 @@ class Pattern_Lab {
 	}
 
 	/**
-	 * Create a WordPress page from an ordered list of pattern slugs.
+	 * Create a WordPress page from an ordered list of patterns.
 	 *
-	 * When every slug is an Aludra pattern and Waygate is set to use Aludra, the page is
-	 * built by aludra/compose-page instead of from wp:pattern references.
+	 * Plain slugs are stored as `wp:pattern` references. Once any section carries texts or
+	 * links, every pattern is inlined so the replacements can be applied. When every pattern is
+	 * an Aludra pattern and Waygate is set to use Aludra, the page is built by
+	 * aludra/compose-page instead, with the pairs passed on.
 	 *
-	 * @param string   $title         Page title.
-	 * @param string[] $pattern_slugs Ordered list of validated pattern slugs.
-	 * @param string   $status        Post status ('draft' or 'publish').
+	 * Invalid or unregistered sections are skipped.
+	 *
+	 * @param string                  $title    Page title.
+	 * @param array<int,string|array> $sections Ordered pattern slugs or {pattern, texts, links}.
+	 * @param string                  $status   Post status ('draft' or 'publish').
+	 * @param string[]|null           $warnings Set to warnings for find strings that matched nothing.
 	 * @return int|\WP_Error Post ID on success, WP_Error on failure.
 	 */
-	public static function create_page( string $title, array $pattern_slugs, string $status = 'draft' ) {
+	public static function create_page( string $title, array $sections, string $status = 'draft', ?array &$warnings = null ) {
+		$warnings         = array();
 		$registered_slugs = array_column( self::get_patterns(), 'slug' );
-		$valid_slugs      = array();
-		$content          = '';
+		$valid            = array();
+		$replacing        = false;
 
-		foreach ( $pattern_slugs as $slug ) {
-			$slug = sanitize_text_field( $slug );
+		foreach ( $sections as $entry ) {
+			$section = self::normalize_section( $entry );
 
-			if ( ! preg_match( '/^[a-z0-9_-]+\/[a-z0-9_-]+$/', $slug ) ) {
+			if ( is_wp_error( $section ) ) {
 				continue;
 			}
 
-			if ( ! in_array( $slug, $registered_slugs, true ) ) {
+			$slug = sanitize_text_field( $section['pattern'] );
+
+			if ( ! preg_match( '/^[a-z0-9_-]+\/[a-z0-9_-]+$/', $slug ) || ! in_array( $slug, $registered_slugs, true ) ) {
 				continue;
 			}
 
-			$valid_slugs[] = $slug;
-			$content      .= '<!-- wp:pattern {"slug":"' . esc_attr( $slug ) . '"} /-->' . "\n\n";
+			$section['pattern'] = $slug;
+			$valid[]            = $section;
+			$replacing          = $replacing || ! empty( $section['texts'] ) || ! empty( $section['links'] );
 		}
 
-		$aludra_sections = self::aludra_sections( $valid_slugs );
+		$aludra_sections = self::aludra_sections( $valid );
 
 		if ( null !== $aludra_sections && self::use_aludra() ) {
-			return self::create_page_with_aludra( $title, $aludra_sections, $status );
+			return self::create_page_with_aludra( $title, $aludra_sections, $status, $warnings );
 		}
 
-		if ( empty( $content ) ) {
+		if ( empty( $valid ) ) {
 			return new \WP_Error( 'no_valid_patterns', 'No valid patterns were selected.' );
 		}
+
+		$composed = self::compose( $valid, $replacing );
+
+		if ( is_wp_error( $composed ) ) {
+			return $composed;
+		}
+
+		$warnings = $composed['warnings'];
 
 		// wp_insert_post() unslashes its input; slash it so backslashes in block JSON survive.
 		return wp_insert_post(
 			wp_slash(
 				array(
 					'post_title'   => sanitize_text_field( $title ),
-					'post_content' => $content,
+					'post_content' => $composed['content'] . "\n\n",
 					'post_status'  => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
 					'post_type'    => 'page',
 				)

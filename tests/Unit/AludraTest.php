@@ -128,6 +128,32 @@ class AludraTest extends TestCase {
 		$this->assertNull( $GLOBALS['wp_last_inserted_post'] );
 	}
 
+	public function test_create_page_passes_pairs_and_warnings_through_to_aludra(): void {
+		$ability = $this->enable_aludra( [ 'page_id' => 42, 'warnings' => [ 'Section 0: "Nope" matched nothing.' ] ] );
+		$this->register( 'aludra/section-hero-split' );
+		$this->register( 'aludra/section-faq' );
+
+		$texts    = [ [ 'find' => 'Fast Sites.', 'replace' => 'Good Nails.' ] ];
+		$links    = [ [ 'find' => '/contact', 'replace' => '/book' ] ];
+		$warnings = null;
+		$result   = Pattern_Lab::create_page(
+			'Nail salon',
+			[ [ 'pattern' => 'aludra/section-hero-split', 'texts' => $texts, 'links' => $links ], 'aludra/section-faq' ],
+			'draft',
+			$warnings
+		);
+
+		$this->assertSame( 42, $result );
+		$this->assertSame(
+			[
+				[ 'pattern' => 'aludra/section-hero-split', 'texts' => $texts, 'links' => $links ],
+				[ 'pattern' => 'aludra/section-faq' ],
+			],
+			$ability->input['sections']
+		);
+		$this->assertSame( [ 'Section 0: "Nope" matched nothing.' ], $warnings );
+	}
+
 	public function test_create_page_keeps_references_for_mixed_pages(): void {
 		$ability = $this->enable_aludra();
 		$this->register( 'aludra/section-faq' );

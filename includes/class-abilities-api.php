@@ -10,7 +10,7 @@ namespace Imagewize\Waygate;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the waygate/list-patterns and waygate/create-page abilities.
+ * Registers the waygate/list-patterns, waygate/get-pattern and waygate/create-page abilities.
  *
  * Until 1.1.0 these were named elayne/* and assigned to a "content" category that
  * nothing registers, so WordPress rejected both with a _doing_it_wrong notice and
@@ -45,7 +45,27 @@ class Abilities_API {
 	}
 
 	/**
-	 * Registers both abilities with the WordPress Abilities API.
+	 * JSON schema for a list of {find, replace} pairs.
+	 *
+	 * @return array
+	 */
+	private static function pair_list_schema(): array {
+		return array(
+			'type'  => 'array',
+			'items' => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'find'    => array( 'type' => 'string' ),
+					'replace' => array( 'type' => 'string' ),
+				),
+				'required'             => array( 'find', 'replace' ),
+				'additionalProperties' => false,
+			),
+		);
+	}
+
+	/**
+	 * Registers the abilities with the WordPress Abilities API.
 	 */
 	public static function register_abilities(): void {
 		if ( ! function_exists( 'wp_register_ability' ) ) {
@@ -108,10 +128,69 @@ class Abilities_API {
 		);
 
 		wp_register_ability(
+			'waygate/get-pattern',
+			array(
+				'label'               => __( 'Get Pattern', 'waygate' ),
+				'description'         => __( 'Returns one pattern: its block markup, the exact text strings waygate/create-page can replace ("texts") and its link targets ("links"). Use these strings verbatim as "find" values. Each text is one whole text run; a heading with inline emphasis has one text per run.', 'waygate' ),
+				'category'            => 'waygate',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'slug' => array(
+							'type'        => 'string',
+							'description' => 'Pattern slug from waygate/list-patterns.',
+						),
+					),
+					'required'             => array( 'slug' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'       => 'object',
+					'properties' => array(
+						'slug'        => array( 'type' => 'string' ),
+						'title'       => array( 'type' => 'string' ),
+						'description' => array( 'type' => 'string' ),
+						'categories'  => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'keywords'    => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'content'     => array( 'type' => 'string' ),
+						'texts'       => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'links'       => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+					),
+				),
+				'execute_callback'    => function ( array $params ) {
+					$pattern = Pattern_Lab::get_pattern( (string) $params['slug'] );
+
+					return $pattern ?? new \WP_Error( 'unknown_pattern', 'Unknown pattern. Call waygate/list-patterns for valid slugs.' );
+				},
+				'permission_callback' => fn() => current_user_can( 'edit_posts' ),
+				'meta'                => array(
+					'public'       => true,
+					'show_in_rest' => true,
+					'annotations'  => array(
+						'readonly'   => true,
+						'idempotent' => true,
+					),
+				),
+			)
+		);
+
+		wp_register_ability(
 			'waygate/create-page',
 			array(
 				'label'               => __( 'Create Page from Patterns', 'waygate' ),
-				'description'         => __( 'Creates a new WordPress page assembled from an ordered list of block patterns.', 'waygate' ),
+				'description'         => __( 'Creates a new WordPress page assembled from an ordered list of block patterns. Each item is a pattern slug, or an object with "pattern" plus "texts" and "links": lists of {find, replace} pairs whose find strings come verbatim from waygate/get-pattern. Replacements are plain text or URLs, never HTML. Returns warnings for find strings that matched nothing.', 'waygate' ),
 				'category'            => 'waygate',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -122,8 +201,22 @@ class Abilities_API {
 						),
 						'patterns' => array(
 							'type'        => 'array',
-							'items'       => array( 'type' => 'string' ),
-							'description' => 'Ordered list of Elayne pattern slugs.',
+							'items'       => array(
+								'anyOf' => array(
+									array( 'type' => 'string' ),
+									array(
+										'type'       => 'object',
+										'properties' => array(
+											'pattern' => array( 'type' => 'string' ),
+											'texts'   => self::pair_list_schema(),
+											'links'   => self::pair_list_schema(),
+										),
+										'required'   => array( 'pattern' ),
+										'additionalProperties' => false,
+									),
+								),
+							),
+							'description' => 'Ordered list of pattern slugs or {pattern, texts, links} sections.',
 						),
 						'status'   => array(
 							'type'    => 'string',
@@ -134,10 +227,12 @@ class Abilities_API {
 					'required'   => array( 'title', 'patterns' ),
 				),
 				'execute_callback'    => function ( array $params ): array {
-					$result = Pattern_Lab::create_page(
+					$warnings = array();
+					$result   = Pattern_Lab::create_page(
 						$params['title'],
 						$params['patterns'],
-						$params['status'] ?? 'draft'
+						$params['status'] ?? 'draft',
+						$warnings
 					);
 
 					if ( is_wp_error( $result ) ) {
@@ -152,6 +247,7 @@ class Abilities_API {
 						'page_id'  => $result,
 						'edit_url' => get_edit_post_link( $result, 'raw' ),
 						'view_url' => get_permalink( $result ),
+						'warnings' => $warnings,
 					);
 				},
 				'permission_callback' => fn() => current_user_can( 'publish_pages' ),

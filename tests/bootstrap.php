@@ -56,6 +56,11 @@ function esc_attr( string $str ): string {
 	return htmlspecialchars( $str, ENT_QUOTES );
 }
 
+function esc_url_raw( string $url ): string {
+	$url = trim( $url );
+	return preg_match( '#^(https?://|/|\#|mailto:|tel:)#i', $url ) ? $url : '';
+}
+
 function is_wp_error( mixed $thing ): bool {
 	return $thing instanceof WP_Error;
 }
