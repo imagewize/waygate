@@ -35,10 +35,19 @@ Built-in verticals: `food-beverage`, `legal`, `plumbing`, `salon`, `spa`. Add yo
 
 ## Text rewriting
 
-With rewriting on, a second AI call rewrites the headings, paragraphs and button labels inside the
-chosen patterns to fit your description. The page then stores the rewritten markup instead of
-pattern references. Rewritten markup comes from the AI, so open the draft in the editor and check
-it before publishing.
+With rewriting on, a second AI call rewrites the headings, paragraphs, button labels and form
+labels of the chosen patterns to fit your description. The AI never sees or writes markup: it
+gets each pattern's texts as numbered lines and answers with new text per line number. Waygate
+turns that into the same find/replace pairs `waygate/create-page` takes (see
+[Replacing text and links](api.md#replacing-text-and-links)), so the page keeps the patterns'
+markup and stays valid in the editor.
+
+- Texts without a letter, such as `3,600+` or `20+`, are not offered, so the AI cannot invent
+  statistics. Change them in the editor.
+- Answers for line numbers that don't exist, repeated lines and unchanged texts are dropped.
+- Links and images keep the patterns' values.
+- The pairs are stored as inlined pattern content, not `wp:pattern` references. Read the draft
+  before publishing: the copy is the AI's.
 
 ## After generation
 
@@ -56,5 +65,5 @@ Tools → Waygate (`waygate_use_aludra` option). When it is on:
   header, footer and mega-menu patterns are not.
 - A page made **only** of Aludra patterns is built by `aludra/compose-page`, which inlines the
   pattern markup and refuses a pattern that uses a block disabled under Settings → Aludra. Text
-  rewriting is skipped for these pages, because rewritten markup would bypass that.
+  rewriting works for these pages too: the pairs are passed on to `aludra/compose-page`.
 - A page that mixes theme and Aludra patterns is built as before, from `wp:pattern` references.

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `wp waygate get <slug>` WP-CLI command — a pattern's replaceable texts and links; `--stub` prints a build-map section ready to edit, `--format=json` the pattern data
+- `AI_Integration::rewritable_texts()`, `pairs_prompt()`, `sections_from_response()` and `personalize_sections()`; `generate_page()` returns `warnings`
 - `waygate/get-pattern` ability — one pattern's markup plus the exact `texts` and `links` that can be replaced, for any theme's patterns
 - Text and link pairs on `waygate/create-page`: each pattern can be a `{pattern, texts, links}` section, where `texts` and `links` are lists of `{find, replace}` pairs. A find matches a whole text run or text attribute, so the block stays valid in the editor; replacements are escaped plain text or sanitized URLs. Finds that match nothing come back as `warnings`. Pages made only of Aludra patterns pass the pairs on to `aludra/compose-page`
 - The same sections in `wp waygate build` maps, with a warning per unmatched find
@@ -15,7 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Text_Replace` class (ported from Aludra, compatible with its find strings), `Pattern_Lab::get_pattern()`, `normalize_section()` and `compose()`
 
 ### Changed
+- **AI text personalization uses find/replace pairs.** The AI gets each pattern's texts as numbered lines and answers with new text per line, instead of rewriting block markup. Waygate maps the numbers back to exact find strings and builds the page with `create_page()`, so a personalized page keeps the patterns' markup and stays valid in the editor. Texts without letters (statistics) are not offered. All-Aludra pages are now personalized too, through `aludra/compose-page`. Unmatched finds are shown on Tools → Waygate
 - `Pattern_Lab::create_page()` and `build_content()` accept sections as well as slugs; `create_page()` and `create_page_with_aludra()` take an optional `$warnings` out-parameter. Once any section has pairs, `create_page()` inlines every pattern instead of storing `wp:pattern` references
+
+### Removed
+- `AI_Integration::rewrite_pattern_texts()`, which asked the AI to return rewritten block markup. Use `personalize_sections()`
 
 ## [1.2.0] - 2026-11-14
 

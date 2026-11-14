@@ -50,6 +50,19 @@ A pattern can also carry `texts` and `links`, as `{find, replace}` pairs (see
 A find that matches nothing prints a warning and the page is still built. `--references` fails a
 page whose patterns carry pairs, since a reference cannot hold them.
 
+## `wp waygate get <slug>`
+
+```bash
+wp waygate get elayne/legal-cta-strip
+wp waygate get elayne/legal-cta-strip --stub > cta.json
+wp waygate get elayne/legal-cta-strip --format=json --content
+```
+
+Shows a pattern's replaceable texts and links: the exact find strings for `texts` and `links`
+pairs. `--stub` prints a build-map section with every text and link paired with itself; edit the
+`replace` values and drop the pairs you keep. `--format=json` prints the pattern's data, with its
+block markup when `--content` is given.
+
 ## `wp waygate list`
 
 ```bash
