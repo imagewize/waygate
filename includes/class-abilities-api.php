@@ -10,7 +10,11 @@ namespace Imagewize\Waygate;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the elayne/list-patterns and elayne/create-page abilities.
+ * Registers the waygate/list-patterns and waygate/create-page abilities.
+ *
+ * Until 1.1.0 these were named elayne/* and assigned to a "content" category that
+ * nothing registers, so WordPress rejected both with a _doing_it_wrong notice and
+ * they never existed. Renaming them breaks no client for that reason.
  */
 class Abilities_API {
 
@@ -18,7 +22,26 @@ class Abilities_API {
 	 * Hooks into the Abilities API init action.
 	 */
 	public static function init(): void {
+		add_action( 'wp_abilities_api_categories_init', array( self::class, 'register_category' ) );
 		add_action( 'wp_abilities_api_init', array( self::class, 'register_abilities' ) );
+	}
+
+	/**
+	 * Registers the ability category. An ability whose category is not registered is
+	 * refused by the registry, so this must run on the categories hook, which fires first.
+	 */
+	public static function register_category(): void {
+		if ( ! function_exists( 'wp_register_ability_category' ) ) {
+			return;
+		}
+
+		wp_register_ability_category(
+			'waygate',
+			array(
+				'label'       => __( 'Waygate', 'waygate' ),
+				'description' => __( 'Build pages from registered block patterns.', 'waygate' ),
+			)
+		);
 	}
 
 	/**
@@ -30,13 +53,14 @@ class Abilities_API {
 		}
 
 		wp_register_ability(
-			'elayne/list-patterns',
+			'waygate/list-patterns',
 			array(
-				'label'               => __( 'List Elayne Patterns', 'waygate' ),
-				'description'         => __( 'Returns all available Elayne block patterns with slug, title, categories and keywords.', 'waygate' ),
-				'category'            => 'content',
+				'label'               => __( 'List Patterns', 'waygate' ),
+				'description'         => __( 'Returns the block patterns Waygate can build pages from, with slug, title, categories and keywords.', 'waygate' ),
+				'category'            => 'waygate',
 				'input_schema'        => array(
 					'type'       => 'object',
+					'default'    => array(),
 					'properties' => array(
 						'category' => array(
 							'type'        => 'string',
@@ -76,6 +100,7 @@ class Abilities_API {
 				},
 				'permission_callback' => fn() => current_user_can( 'edit_posts' ),
 				'meta'                => array(
+					'public'       => true,
 					'show_in_rest' => true,
 					'annotations'  => array( 'readonly' => true ),
 				),
@@ -83,11 +108,11 @@ class Abilities_API {
 		);
 
 		wp_register_ability(
-			'elayne/create-page',
+			'waygate/create-page',
 			array(
-				'label'               => __( 'Create Page from Elayne Patterns', 'waygate' ),
-				'description'         => __( 'Creates a new WordPress draft page assembled from Elayne block patterns.', 'waygate' ),
-				'category'            => 'content',
+				'label'               => __( 'Create Page from Patterns', 'waygate' ),
+				'description'         => __( 'Creates a new WordPress page assembled from an ordered list of block patterns.', 'waygate' ),
+				'category'            => 'waygate',
 				'input_schema'        => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -131,6 +156,7 @@ class Abilities_API {
 				},
 				'permission_callback' => fn() => current_user_can( 'publish_pages' ),
 				'meta'                => array(
+					'public'       => true,
 					'show_in_rest' => true,
 					'annotations'  => array( 'idempotent' => true ),
 				),

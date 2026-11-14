@@ -52,7 +52,7 @@ vendor/bin/phpunit --configuration phpunit.xml
 
 ## Architecture
 - **Pattern_Lab** (`includes/class-pattern-lab.php`) — Data layer for pattern querying and page composition
-- **Abilities_API** (`includes/class-abilities-api.php`) — Registers `elayne/list-patterns` and `elayne/create-page` abilities
+- **Abilities_API** (`includes/class-abilities-api.php`) — Registers `waygate/list-patterns` and `waygate/create-page` abilities
 - **AI_Integration** (`includes/class-ai-integration.php`) — Orchestrates AI page generation with Mistral provider
 - **Admin** (`includes/class-admin.php`) — WordPress admin UI at **Tools → Waygate**
 

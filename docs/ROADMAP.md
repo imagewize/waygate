@@ -16,7 +16,7 @@ This document outlines potential improvements and feature additions for Waygate,
 |---------|---------------|--------|
 | Pattern catalog | Lists Elayne patterns with metadata | ✅ Complete |
 | AI page generation | Natural language → pattern selection → draft page | ✅ Complete |
-| Abilities API | `elayne/list-patterns`, `elayne/create-page` | ✅ Complete |
+| Abilities API | `waygate/list-patterns`, `waygate/create-page` | ✅ Complete |
 | Multi-provider | Mistral, Claude, OpenAI, Gemini via WP AI Client | ✅ Complete |
 | Admin UI | Tools → Waygate page | ✅ Complete |
 
@@ -93,7 +93,7 @@ $image_gen_supported = $builder->is_supported_for_image_generation();
 
 ```php
 wp_register_ability(
-    'elayne/list-patterns',
+    'waygate/list-patterns',
     [
         // ... existing config
         'meta' => [
@@ -106,7 +106,7 @@ wp_register_ability(
 );
 
 wp_register_ability(
-    'elayne/create-page',
+    'waygate/create-page',
     [
         // ... existing config
         'meta' => [

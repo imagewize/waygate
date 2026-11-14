@@ -41,8 +41,8 @@ All classes live in `includes/` with PSR-4 autoloading (`Imagewize\Waygate` → 
 **`Pattern_Lab`** (`includes/class-pattern-lab.php`) — The data layer. Queries WordPress's registered block patterns to extract those belonging to the active Elayne theme, returning structured metadata (slug, title, description, categories, keywords). Also handles composing `wp:pattern` blocks into a page and calling `wp_insert_post`.
 
 **`Abilities_API`** (`includes/class-abilities-api.php`) — Registers two WordPress Abilities (WP 7.0+ feature):
-- `elayne/list-patterns` — lists available patterns, optionally filtered by category; requires `edit_posts`
-- `elayne/create-page` — creates a draft page from an ordered pattern slug list; requires `publish_pages`
+- `waygate/list-patterns` — lists available patterns, optionally filtered by category; requires `edit_posts`
+- `waygate/create-page` — creates a draft page from an ordered pattern slug list; requires `publish_pages`
 
 Each ability has a JSON input/output schema for capability validation.
 
