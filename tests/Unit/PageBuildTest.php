@@ -75,6 +75,95 @@ class PageBuildTest extends TestCase {
 		$this->assertStringContainsString( 'elayne/nope', $result->get_error_message() );
 	}
 
+	// --- sections with text and link pairs ---
+
+	private const HERO = '<!-- wp:heading {"level":1} --><h1>Your firm</h1><!-- /wp:heading --><p><a href="/contact">Call us</a></p>';
+
+	public function test_compose_applies_pairs_and_warns_on_misses(): void {
+		$this->register( 'elayne/hero', [], [ 'content' => self::HERO ] );
+		$this->register( 'elayne/cta', [], [ 'content' => '<p>CTA</p>' ] );
+
+		$result = Pattern_Lab::compose(
+			[
+				[
+					'pattern' => 'elayne/hero',
+					'texts'   => [ [ 'find' => 'Your firm', 'replace' => 'Salon Rosa' ], [ 'find' => 'Nope', 'replace' => 'x' ] ],
+					'links'   => [ [ 'find' => '/contact', 'replace' => '/book' ] ],
+				],
+				'elayne/cta',
+			]
+		);
+
+		$this->assertSame(
+			'<!-- wp:heading {"level":1} --><h1>Salon Rosa</h1><!-- /wp:heading --><p><a href="/book">Call us</a></p>' . "\n\n<p>CTA</p>",
+			$result['content']
+		);
+		$this->assertCount( 1, $result['warnings'] );
+		$this->assertStringContainsString( 'Section 0 (elayne/hero): "Nope"', $result['warnings'][0] );
+	}
+
+	public function test_compose_refuses_pairs_on_references(): void {
+		$this->register( 'elayne/hero', [], [ 'content' => self::HERO ] );
+
+		$result = Pattern_Lab::compose( [ [ 'pattern' => 'elayne/hero', 'texts' => [ [ 'find' => 'Your firm', 'replace' => 'x' ] ] ] ], false );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'references_with_replacements', $result->get_error_code() );
+	}
+
+	public function test_compose_rejects_malformed_sections(): void {
+		$this->register( 'elayne/hero', [], [ 'content' => self::HERO ] );
+
+		$this->assertInstanceOf( WP_Error::class, Pattern_Lab::compose( [ [ 'texts' => [] ] ] ) );
+		$this->assertInstanceOf( WP_Error::class, Pattern_Lab::compose( [ [ 'pattern' => 'elayne/hero', 'texts' => [ 'Your firm' ] ] ] ) );
+		$this->assertInstanceOf( WP_Error::class, Pattern_Lab::compose( [ [ 'pattern' => 'elayne/hero', 'texts' => [ 'find' => 'a', 'replace' => 'b' ] ] ] ) );
+	}
+
+	public function test_create_page_inlines_all_patterns_once_any_has_pairs(): void {
+		$this->register( 'elayne/hero', [], [ 'content' => self::HERO ] );
+		$this->register( 'elayne/cta', [], [ 'content' => '<p>CTA</p>' ] );
+
+		$warnings = null;
+		$result   = Pattern_Lab::create_page(
+			'Salon',
+			[ [ 'pattern' => 'elayne/hero', 'texts' => [ [ 'find' => 'Your firm', 'replace' => 'Salon Rosa' ], [ 'find' => 'Missing', 'replace' => 'x' ] ] ], 'elayne/cta' ],
+			'draft',
+			$warnings
+		);
+
+		$this->assertSame( 1, $result );
+		$content = $GLOBALS['wp_last_inserted_post']['post_content'];
+		$this->assertStringContainsString( '<h1>Salon Rosa</h1>', $content );
+		$this->assertStringContainsString( '<p>CTA</p>', $content );
+		$this->assertStringNotContainsString( 'wp:pattern', $content );
+		$this->assertCount( 1, $warnings );
+	}
+
+	public function test_get_pattern_returns_texts_and_links(): void {
+		$this->register( 'elayne/hero', [ 'elayne/hero' ], [ 'content' => self::HERO ] );
+
+		$pattern = Pattern_Lab::get_pattern( 'elayne/hero' );
+
+		$this->assertSame( self::HERO, $pattern['content'] );
+		$this->assertSame( [ 'Your firm', 'Call us' ], $pattern['texts'] );
+		$this->assertSame( [ '/contact' ], $pattern['links'] );
+		$this->assertSame( [ 'elayne/hero' ], $pattern['categories'] );
+	}
+
+	public function test_get_pattern_expands_nested_references(): void {
+		$this->register( 'elayne/cta', [], [ 'content' => '<p>CTA</p>' ] );
+		$this->register( 'elayne/page', [], [ 'content' => '<!-- wp:pattern {"slug":"elayne/cta"} /-->' ] );
+
+		$this->assertSame( [ 'CTA' ], Pattern_Lab::get_pattern( 'elayne/page' )['texts'] );
+	}
+
+	public function test_get_pattern_null_for_patterns_not_offered(): void {
+		$this->register( 'other/hero', [], [ 'content' => self::HERO ] );
+
+		$this->assertNull( Pattern_Lab::get_pattern( 'other/hero' ) );
+		$this->assertNull( Pattern_Lab::get_pattern( 'elayne/missing' ) );
+	}
+
 	// --- backslashes survive wp_insert_post() unslashing ---
 
 	public function test_create_page_from_content_keeps_backslashes(): void {

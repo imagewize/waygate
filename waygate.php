@@ -22,6 +22,7 @@ define( 'WAYGATE_VERSION', '1.2.0' );
 define( 'WAYGATE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WAYGATE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
+require_once WAYGATE_PLUGIN_DIR . 'includes/class-text-replace.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-pattern-lab.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-abilities-api.php';
 require_once WAYGATE_PLUGIN_DIR . 'includes/class-ai-integration.php';
