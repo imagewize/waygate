@@ -77,6 +77,7 @@ class Admin {
 				$description      = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
 				$personalize_text = ! empty( $_POST['personalize_text'] );
 				$vertical         = sanitize_key( wp_unslash( $_POST['vertical'] ?? '' ) );
+				$template         = sanitize_text_field( wp_unslash( $_POST['template'] ?? '' ) );
 
 				if ( '' !== $vertical && ! in_array( $vertical, Pattern_Lab::get_verticals(), true ) ) {
 					$vertical = '';
@@ -85,7 +86,7 @@ class Admin {
 				if ( empty( $description ) ) {
 					$result = array( 'error' => 'Please describe the page you want to create.' );
 				} else {
-					$result = AI_Integration::generate_page( $description, $personalize_text, $vertical );
+					$result = AI_Integration::generate_page( $description, $personalize_text, $vertical, $template );
 				}
 			}
 		}
@@ -150,7 +151,7 @@ class Admin {
 				<h2 style="margin-top:0">Generate a page with AI</h2>
 				<p>Describe the page you want. The AI will select appropriate Elayne patterns and create a draft.</p>
 
-				<form method="post">
+				<form method="post" id="waygate-generate-form">
 					<?php wp_nonce_field( 'waygate_generate' ); ?>
 					<input type="hidden" name="waygate_action" value="generate">
 
@@ -198,6 +199,21 @@ class Admin {
 								<p class="description">Only offer this vertical's patterns to the AI, so a law-firm page doesn't get a spa hero. Defaults to the active child theme's vertical. Falls back to all patterns if the vertical has fewer than three sections.</p>
 							</td>
 						</tr>
+						<tr>
+							<th scope="row"><label for="waygate-page-template">Page template</label></th>
+							<td>
+								<?php $selected_template = isset( $_POST['template'] ) ? sanitize_text_field( wp_unslash( $_POST['template'] ) ) : ''; ?>
+								<select id="waygate-page-template" name="template" style="max-width:400px">
+									<option value="">Default</option>
+									<?php foreach ( get_page_templates() as $name => $file ) : ?>
+									<option value="<?php echo esc_attr( $file ); ?>" <?php selected( $selected_template, $file ); ?>>
+										<?php echo esc_html( $name ); ?>
+									</option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description">Optional page template, for example a no-title template for a full-width homepage.</p>
+							</td>
+						</tr>
 							<tr>
 								<th scope="row">Text personalization</th>
 								<td>
@@ -215,7 +231,14 @@ class Admin {
 							</tr>
 						</table>
 
-					<?php submit_button( 'Generate Page', 'primary', 'submit', false ); ?>
+					<div id="waygate-generate-actions">
+						<?php submit_button( 'Generate Page', 'primary', 'submit', false ); ?>
+					</div>
+					<div id="waygate-generate-status" style="display:none;margin-top:12px">
+						<span class="spinner" style="float:none;margin:0 6px 0 0;visibility:visible"></span>
+						<strong id="waygate-generate-message">Generating page…</strong>
+						<p class="description" style="margin:4px 0 0">This can take up to a few minutes because Waygate calls the AI twice: once to choose patterns, then again to rewrite the text.</p>
+					</div>
 				</form>
 			</div>
 			<script>
@@ -230,6 +253,33 @@ class Admin {
 				select.value = '';
 				textarea.focus();
 			}
+
+			( function() {
+				var form     = document.getElementById( 'waygate-generate-form' );
+				var actions  = document.getElementById( 'waygate-generate-actions' );
+				var status   = document.getElementById( 'waygate-generate-status' );
+				var message  = document.getElementById( 'waygate-generate-message' );
+				var textarea = document.getElementById( 'description' );
+
+				if ( ! form || ! actions || ! status || ! message ) {
+					return;
+				}
+
+				form.addEventListener( 'submit', function() {
+					var personalize = form.querySelector( 'input[name="personalize_text"]' );
+					var step        = personalize && personalize.checked
+						? 'Choosing patterns and rewriting text…'
+						: 'Choosing patterns…';
+
+					message.textContent = step;
+					actions.style.display = 'none';
+					status.style.display  = 'block';
+
+					if ( textarea ) {
+						textarea.readOnly = true;
+					}
+				} );
+			} )();
 			</script>
 			<?php endif; ?>
 

@@ -181,4 +181,12 @@ class PageBuildTest extends TestCase {
 
 		$this->assertSame( "<!-- wp:pattern {\"slug\":\"elayne/a\"} /-->\n\n", $GLOBALS['wp_last_inserted_post']['post_content'] );
 	}
+
+	public function test_create_page_applies_template(): void {
+		$this->register( 'elayne/a', [], [ 'content' => '<p>A</p>' ] );
+
+		Pattern_Lab::create_page( 'Test', [ 'elayne/a' ], 'draft', $warnings, 'page-no-title.php' );
+
+		$this->assertSame( 'page-no-title.php', $GLOBALS['wp_postmeta'][1]['_wp_page_template'] ?? null );
+	}
 }

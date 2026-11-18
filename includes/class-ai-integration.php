@@ -446,9 +446,10 @@ class AI_Integration {
 	 *                                 texts for the description, as find/replace pairs.
 	 * @param string $vertical         Optional vertical slug (e.g. "legal"); limits the choice to that
 	 *                                 vertical's patterns when it has at least three page sections.
+	 * @param string $template         Optional page template slug, e.g. "page-no-title".
 	 * @return array{title:string,patterns:string[],pattern_count:int,reasoning:string,personalized:bool,warnings:string[],text_error:string,edit_url:string,view_url:string}|array{error:string}
 	 */
-	public static function generate_page( string $description, bool $personalize_text = true, string $vertical = '' ): array {
+	public static function generate_page( string $description, bool $personalize_text = true, string $vertical = '', string $template = '' ): array {
 		// Two AI calls of up to request_timeout() each can outlast PHP's limit on a web request.
 		if ( function_exists( 'set_time_limit' ) ) {
 			set_time_limit( (int) ceil( 2 * self::request_timeout() ) + 60 ); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- two AI calls can outlast the default limit.
@@ -548,7 +549,7 @@ class AI_Integration {
 			}
 		}
 
-		$post_id = Pattern_Lab::create_page( $page_title, $sections, 'draft', $warnings );
+		$post_id = Pattern_Lab::create_page( $page_title, $sections, 'draft', $warnings, $template );
 
 		if ( is_wp_error( $post_id ) ) {
 			return array( 'error' => $post_id->get_error_message() );

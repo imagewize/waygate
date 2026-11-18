@@ -9,10 +9,12 @@ Everything happens on **Tools → Waygate** (requires `manage_options`; creating
    Portfolio). It fills in the description; replace any `[placeholder]` text with your specifics.
 2. Write the **Page description**: industry, page type and the sections you want.
 3. Pick a **Vertical**, or leave **All patterns**.
-4. Leave **Rewrite pattern text to match my description** on for on-topic copy, or turn it off for
+4. Pick a **Page template**, for example a no-title template for a full-width homepage.
+5. Leave **Rewrite pattern text to match my description** on for on-topic copy, or turn it off for
    a faster, single-call result that keeps the patterns' sample text.
-5. Click **Generate Page**. Waygate creates a draft and links to it.
-6. Open the draft in the block editor, adjust and publish.
+6. Click **Generate Page**. Waygate shows a progress message while it calls the AI and creates the
+   draft, then links to it.
+7. Open the draft in the block editor, adjust and publish.
 
 Below the form, the **pattern catalog** lists every pattern Waygate can use, filterable by
 category.

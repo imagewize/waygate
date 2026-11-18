@@ -109,6 +109,17 @@ function sanitize_key( string $key ): string {
 	return strtolower( preg_replace( '/[^a-z0-9_-]/', '', $key ) );
 }
 
+function sanitize_file_name( string $filename ): string {
+	return preg_replace( '/[^a-zA-Z0-9._-]/', '', $filename );
+}
+
+$GLOBALS['wp_postmeta'] = [];
+
+function update_post_meta( int $post_id, string $meta_key, mixed $meta_value ): bool {
+	$GLOBALS['wp_postmeta'][ $post_id ][ $meta_key ] = $meta_value;
+	return true;
+}
+
 function get_edit_post_link( int $id, string $context = 'display' ): string {
 	return "https://example.com/wp-admin/post.php?post={$id}&action=edit";
 }
