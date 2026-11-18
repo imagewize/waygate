@@ -128,6 +128,10 @@ function absint( mixed $number ): int {
 	return abs( (int) $number );
 }
 
+function wp_parse_url( mixed $url, int $component = -1 ): mixed {
+	return parse_url( $url, $component );
+}
+
 $GLOBALS['wp_attachments'] = [];
 
 function wp_get_attachment_url( int $id ): string|false {
