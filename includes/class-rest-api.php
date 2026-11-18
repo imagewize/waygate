@@ -137,6 +137,36 @@ class Rest_API {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/generate/images',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( self::class, 'generate_images' ),
+				'permission_callback' => fn() => current_user_can( 'publish_pages' ),
+				'args'                => array(
+					'description' => array(
+						'type'              => 'string',
+						'description'       => 'Natural-language description of the desired page.',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+					'slug'        => array(
+						'type'              => 'string',
+						'description'       => 'The pattern slug whose image slots should be filled.',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'ids'         => array(
+						'type'        => 'array',
+						'description' => 'Media-library attachment IDs the page may use.',
+						'required'    => true,
+						'items'       => array( 'type' => 'integer' ),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/generate/build',
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -324,6 +354,77 @@ class Rest_API {
 		}
 
 		return rest_ensure_response( array( 'section' => $section[0] ) );
+	}
+
+	/**
+	 * POST /waygate/v1/generate/images
+	 *
+	 * One image step: the AI decides which of the user's media-library pictures fill this
+	 * pattern's image slots. Uses the step timeout like the pairs step, so it stays below
+	 * web-server upstream read timeouts. Slots nothing fits keep the pattern's original
+	 * image; a pattern with no image slots returns an unpersonalized section.
+	 *
+	 * @param \WP_REST_Request $request Incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function generate_images( \WP_REST_Request $request ) {
+		$slug = sanitize_text_field( (string) $request->get_param( 'slug' ) );
+
+		if ( ! in_array( $slug, array_column( Pattern_Lab::get_patterns(), 'slug' ), true ) ) {
+			return new \WP_Error(
+				'unknown_pattern',
+				'That pattern is not registered.',
+				array( 'status' => 400 )
+			);
+		}
+
+		$description = (string) $request->get_param( 'description' );
+
+		$attachments = array();
+		$seen        = array();
+		foreach ( array_map( 'absint', (array) $request->get_param( 'ids' ) ) as $id ) {
+			$post = $id > 0 ? get_post( $id ) : null;
+
+			if ( ! $post || 'attachment' !== $post->post_type || isset( $seen[ $id ] ) ) {
+				continue;
+			}
+
+			$seen[ $id ] = true;
+
+			$url = Pattern_Lab::attachment_image_url( $id );
+
+			if ( '' !== $url ) {
+				$attachments[] = array(
+					'id'  => $id,
+					'url' => $url,
+					'alt' => Pattern_Lab::attachment_alt( $id ),
+				);
+			}
+		}
+
+		if ( empty( $attachments ) ) {
+			return new \WP_Error(
+				'no_images',
+				'No valid media-library images were provided.',
+				array( 'status' => 400 )
+			);
+		}
+
+		$section = AI_Integration::assign_images( $slug, $description, $attachments, AI_Integration::step_timeout() );
+
+		if ( is_wp_error( $section ) ) {
+			if ( 'no_images' === $section->get_error_code() ) {
+				return rest_ensure_response( array( 'section' => array( 'pattern' => $slug ) ) );
+			}
+
+			return new \WP_Error(
+				$section->get_error_code(),
+				$section->get_error_message(),
+				array( 'status' => 502 )
+			);
+		}
+
+		return rest_ensure_response( array( 'section' => $section ) );
 	}
 
 	/**

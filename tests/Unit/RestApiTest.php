@@ -219,7 +219,72 @@ class RestApiTest extends TestCase {
 
 		$this->assertSame( 'POST', $GLOBALS['wp_rest_routes']['waygate/v1/generate/select']['methods'] );
 		$this->assertSame( 'POST', $GLOBALS['wp_rest_routes']['waygate/v1/generate/pairs']['methods'] );
+		$this->assertSame( 'POST', $GLOBALS['wp_rest_routes']['waygate/v1/generate/images']['methods'] );
 		$this->assertSame( 'POST', $GLOBALS['wp_rest_routes']['waygate/v1/generate/build']['methods'] );
+	}
+
+	public function test_register_routes_registers_generate_images(): void {
+		Rest_API::register_routes();
+
+		$this->assertArrayHasKey( 'waygate/v1/generate/images', $GLOBALS['wp_rest_routes'] );
+	}
+
+	public function test_generate_images_rejects_unregistered_slug(): void {
+		$result = Rest_API::generate_images(
+			$this->request( [ 'description' => 'Day spa', 'slug' => 'elayne/unknown', 'ids' => [ 5 ] ] )
+		);
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'unknown_pattern', $result->get_error_code() );
+		$this->assertSame( 400, $result->get_error_data()['status'] );
+	}
+
+	public function test_generate_images_rejects_missing_or_invalid_ids(): void {
+		$this->register( 'elayne/hero' );
+
+		$result = Rest_API::generate_images(
+			$this->request( [ 'description' => 'Day spa', 'slug' => 'elayne/hero', 'ids' => [ 999 ] ] )
+		);
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'no_images', $result->get_error_code() );
+		$this->assertSame( 400, $result->get_error_data()['status'] );
+	}
+
+	public function test_generate_images_returns_plain_section_when_pattern_has_no_images(): void {
+		$this->register( 'elayne/hero' );
+		$this->add_attachment_helper( 5, 'https://example.test/uploads/team.webp', 'Photo of the team' );
+
+		$data = Rest_API::generate_images(
+			$this->request( [ 'description' => 'Day spa', 'slug' => 'elayne/hero', 'ids' => [ 5 ] ] )
+		)->get_data();
+
+		$this->assertSame( array( 'section' => array( 'pattern' => 'elayne/hero' ) ), $data );
+	}
+
+	public function test_generate_images_reports_ai_failure(): void {
+		WP_Block_Patterns_Registry::get_instance()->register(
+			[
+				'slug'    => 'elayne/hero',
+				'title'   => 'Hero',
+				'content' => '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.test/hero.webp" alt="Hero"/></figure><!-- /wp:image -->',
+			]
+		);
+		$this->add_attachment_helper( 5, 'https://example.test/uploads/team.webp', 'Photo of the team' );
+
+		$result = Rest_API::generate_images(
+			$this->request( [ 'description' => 'Day spa', 'slug' => 'elayne/hero', 'ids' => [ 5 ] ] )
+		);
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'ai_failed', $result->get_error_code() );
+		$this->assertSame( 502, $result->get_error_data()['status'] );
+	}
+
+	private function add_attachment_helper( int $id, string $url, string $alt ): void {
+		$GLOBALS['wp_attachments'][ $id ] = $url;
+		$GLOBALS['wp_postmeta'][ $id ]['_wp_attachment_image_alt'] = $alt;
+		$GLOBALS['wp_posts'][ $id ] = [ 'post_type' => 'attachment' ];
 	}
 
 	public function test_generate_pairs_rejects_unregistered_slug(): void {

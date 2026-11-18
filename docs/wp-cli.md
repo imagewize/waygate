@@ -26,8 +26,9 @@ The map lists pages and their patterns in order:
   nested `wp:pattern` references are expanded. `--references` stores `wp:pattern` blocks instead.
 - An unknown slug fails that page, and the command exits non-zero.
 
-A pattern can also carry `texts` and `links`, as `{find, replace}` pairs (see
-[Replacing text and links](api.md#replacing-text-and-links)):
+A pattern can also carry `texts` and `links`, as `{find, replace}` pairs, and `images`, as
+`{n, id}` pairs filling the pattern's numbered image slots with media-library attachments
+(see [Replacing text, links and images](api.md#replacing-text-links-and-images)):
 
 ```json
 {
@@ -38,7 +39,8 @@ A pattern can also carry `texts` and `links`, as `{find, replace}` pairs (see
         {
           "pattern": "elayne/salon-hero",
           "texts": [{ "find": "Your beauty, our passion", "replace": "Colour and cuts in Utrecht" }],
-          "links": [{ "find": "/contact", "replace": "/book" }]
+          "links": [{ "find": "/contact", "replace": "/book" }],
+          "images": [{ "n": 0, "id": 42 }]
         },
         "elayne/salon-services"
       ]

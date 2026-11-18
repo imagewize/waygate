@@ -413,6 +413,155 @@ class AI_Integration {
 	}
 
 	/**
+	 * The user prompt for the image-assignment call: the topic, the pattern's numbered image
+	 * slots, and the pictures the user chose for the page.
+	 *
+	 * @param string $slug        Pattern slug.
+	 * @param string $theme       The user's page description.
+	 * @param array  $slots       From waygate/get-pattern's images field.
+	 * @param array  $attachments Resolved media-library pictures: {id, url, alt}.
+	 * @return string
+	 */
+	public static function images_prompt( string $slug, string $theme, array $slots, array $attachments ): string {
+		$prompt = "Theme/topic: {$theme}\n";
+
+		$prompt .= "\n=== Image slots of {$slug} ===\n";
+		foreach ( $slots as $n => $slot ) {
+			$alt     = '' !== $slot['alt'] ? $slot['alt'] : '(no alt text)';
+			$file    = basename( (string) wp_parse_url( $slot['url'], PHP_URL_PATH ) );
+			$prompt .= "{$n}: {$alt} | {$file}\n";
+		}
+
+		$prompt .= "\n=== Pictures chosen by the user ===\n";
+		foreach ( $attachments as $i => $attachment ) {
+			$file    = basename( (string) wp_parse_url( $attachment['url'], PHP_URL_PATH ) );
+			$alt     = '' !== $attachment['alt'] ? $attachment['alt'] : '(no alt text)';
+			$prompt .= "{$i}: {$file} | {$alt}\n";
+		}
+
+		return $prompt;
+	}
+
+	/**
+	 * Turn the AI's slot/picture numbers into image pairs for one section.
+	 *
+	 * The AI answers with {n, image} items, both numbers from images_prompt(). Unknown
+	 * numbers, repeated slots and a picture used twice are dropped, so a slot is never
+	 * filled twice and each picture lands in at most one slot per section.
+	 *
+	 * @param array $slots       The pattern's image slots, numbered from 0.
+	 * @param array $attachments Resolved media-library pictures, numbered from 0.
+	 * @param mixed $data        Decoded AI response.
+	 * @return array<int,array{n:int,id:int}> Valid image pairs, n ascending.
+	 */
+	public static function image_pairs_from_response( array $slots, array $attachments, $data ): array {
+		if ( ! is_array( $data ) || ! isset( $data['slots'] ) || ! is_array( $data['slots'] ) ) {
+			return array();
+		}
+
+		$pairs = array();
+		$used  = array();
+
+		foreach ( $data['slots'] as $item ) {
+			if ( ! is_array( $item ) || ! isset( $item['n'], $item['image'] ) || ! is_numeric( $item['n'] ) || ! is_numeric( $item['image'] ) ) {
+				continue;
+			}
+
+			$n  = (int) $item['n'];
+			$i  = (int) $item['image'];
+			$id = (int) ( $attachments[ $i ]['id'] ?? 0 );
+
+			if ( ! isset( $slots[ $n ] ) || $id <= 0 || isset( $pairs[ $n ] ) || isset( $used[ $id ] ) ) {
+				continue;
+			}
+
+			$pairs[ $n ] = array(
+				'n'  => $n,
+				'id' => $id,
+			);
+			$used[ $id ] = true;
+		}
+
+		ksort( $pairs );
+
+		return array_values( $pairs );
+	}
+
+	/**
+	 * Ask the AI to fill one pattern's image slots with the pictures the user chose.
+	 *
+	 * The second half of a stepwise rewrite: one short AI call per section, below web-server
+	 * upstream read timeouts. Slots the AI leaves unfilled keep the pattern's original image.
+	 *
+	 * @param string     $slug        Pattern slug, validated by the caller.
+	 * @param string     $theme       The user's page description.
+	 * @param array      $attachments Resolved media-library pictures: {id, url, alt}.
+	 * @param float|null $timeout     Seconds to wait for the AI answer; defaults to request_timeout().
+	 * @return array{pattern:string,images:array<int,array{n:int,id:int}>}|\WP_Error The section's
+	 *                                                     image pairs, or why they could not be built.
+	 */
+	public static function assign_images( string $slug, string $theme, array $attachments, ?float $timeout = null ) {
+		$pattern = Pattern_Lab::get_pattern( $slug );
+		$slots   = is_array( $pattern ) ? ( $pattern['images'] ?? array() ) : array();
+
+		if ( empty( $slots ) ) {
+			return new \WP_Error( 'no_images', 'The selected pattern has no replaceable images.' );
+		}
+
+		$schema = array(
+			'type'       => 'object',
+			'properties' => array(
+				'slots' => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'n'     => array( 'type' => 'integer' ),
+							'image' => array( 'type' => 'integer' ),
+						),
+						'required'   => array( 'n', 'image' ),
+					),
+				),
+			),
+			'required'   => array( 'slots' ),
+		);
+
+		$system = "You place media-library pictures into a WordPress block pattern's image slots.\n\n"
+			. "Rules:\n"
+			. "- Answer with a JSON object: {\"slots\":[{\"n\": slot number, \"image\": picture number}]}\n"
+			. "- Fill every slot one of the pictures fits; leave out the slots nothing fits\n"
+			. "- Use each chosen picture at most once, and only the given numbers\n"
+			. '- A slot\'s alt text tells what the pattern shows there; prefer a picture with the same subject';
+
+		try {
+			$raw = self::ask( self::images_prompt( $slug, $theme, $slots, $attachments ), $system, $schema, 'rewrite', $timeout );
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'ai_failed', 'AI request failed: ' . $e->getMessage() );
+		}
+
+		if ( is_wp_error( $raw ) ) {
+			return $raw;
+		}
+
+		$data = is_string( $raw ) ? json_decode( $raw, true ) : null;
+
+		if ( ! is_array( $data ) && ! empty( $slots ) ) {
+			return new \WP_Error( 'ai_bad_response', 'AI returned no JSON object for the images.' );
+		}
+
+		$pairs = self::image_pairs_from_response( $slots, $attachments, $data );
+
+		if ( empty( $pairs ) ) {
+			return new \WP_Error( 'ai_no_changes', 'AI filled none of the slots with the chosen pictures.' );
+		}
+
+		return array(
+			'pattern' => $slug,
+			'images'  => $pairs,
+		);
+	}
+
+	/**
 	 * Return the page section patterns the AI may choose from.
 	 *
 	 * Scoped to the vertical when it has at least three sections (a hero, a body section and

@@ -62,8 +62,9 @@ class CliTest extends TestCase {
 					'pattern' => 'aludra/section-hero-split',
 					'texts'   => [ [ 'find' => 'Fast Sites.', 'replace' => 'Good Nails.' ] ],
 					'links'   => [],
+					'images'  => [],
 				],
-				[ 'pattern' => 'elayne/salon-services', 'texts' => [], 'links' => [] ],
+				[ 'pattern' => 'elayne/salon-services', 'texts' => [], 'links' => [], 'images' => [] ],
 			],
 			$pages[0]['patterns']
 		);

@@ -139,4 +139,107 @@ HTML;
 		$this->assertSame( [], Text_Replace::unmatched( self::MARKUP, $map, [] ) );
 		$this->assertSame( array_values( $map ), Text_Replace::texts( Text_Replace::apply( self::MARKUP, $map, [] ) ) );
 	}
+
+	private const IMAGE_MARKUP = <<<'HTML'
+<!-- wp:image {"sizeSlug":"large","className":"is-style-default"} -->
+<figure class="wp-block-image size-large is-style-default"><img src="https://example.test/patterns/images/spa/massage.webp" alt="Back massage treatment"/></figure>
+<!-- /wp:image -->
+
+<!-- wp:image {"width":"24px","height":"24px","sizeSlug":"full"} -->
+<figure class="wp-block-image size-full"><img src="https://example.test/patterns/images/icon-phone.png" alt="Phone"/></figure>
+<!-- /wp:image -->
+
+<!-- wp:image {"sizeSlug":"full"} -->
+<figure class="wp-block-image size-full"><img src="https://example.test/patterns/images/arrow.svg" alt="Arrow"/></figure>
+<!-- /wp:image -->
+
+<!-- wp:cover {"url":"https://example.test/patterns/images/desktop.webp","dimRatio":0,"alt":"Studio"} -->
+<span class="wp-block-cover__background"></span>
+<!-- /wp:cover -->
+HTML;
+
+	public function test_images_lists_img_and_cover_slots_in_document_order(): void {
+		$this->assertSame(
+			[
+				[ 'url' => 'https://example.test/patterns/images/spa/massage.webp', 'alt' => 'Back massage treatment' ],
+				[ 'url' => 'https://example.test/patterns/images/desktop.webp', 'alt' => 'Studio' ],
+			],
+			Text_Replace::images( self::IMAGE_MARKUP )
+		);
+	}
+
+	public function test_images_skips_svgs_and_small_decorative_icons(): void {
+		$this->assertNotContains( 'https://example.test/patterns/images/icon-phone.png', array_column( Text_Replace::images( self::IMAGE_MARKUP ), 'url' ) );
+		$this->assertNotContains( 'https://example.test/patterns/images/arrow.svg', array_column( Text_Replace::images( self::IMAGE_MARKUP ), 'url' ) );
+	}
+
+	public function test_images_deduplicates_repeated_urls(): void {
+		$markup = '<!-- wp:image --><figure><img src="https://example.test/a.webp" alt="A"/></figure><!-- /wp:image -->'
+			. '<!-- wp:image --><figure><img src="https://example.test/a.webp" alt="A again"/></figure><!-- /wp:image -->';
+
+		$this->assertCount( 1, Text_Replace::images( $markup ) );
+	}
+
+	public function test_apply_swaps_img_src_and_alt(): void {
+		$out = Text_Replace::apply(
+			self::IMAGE_MARKUP,
+			[],
+			[],
+			[
+				'https://example.test/patterns/images/spa/massage.webp' => [
+					'url' => 'https://example.test/wp-content/uploads/2026/11/hot-stones.webp',
+					'alt' => 'Hot stone massage',
+					'id'  => 42,
+				],
+			]
+		);
+
+		$this->assertStringContainsString( '<img src="https://example.test/wp-content/uploads/2026/11/hot-stones.webp" alt="Hot stone massage"/>', $out );
+		$this->assertStringNotContainsString( 'spa/massage.webp', $out );
+	}
+
+	public function test_apply_adds_wp_image_class_for_attachments(): void {
+		$markup = '<!-- wp:image {"id":7,"sizeSlug":"full"} --><figure><img src="https://example.test/old.webp" alt="Old" class="wp-image-7"/></figure><!-- /wp:image -->';
+
+		$out = Text_Replace::apply( $markup, [], [], [ 'https://example.test/old.webp' => [ 'url' => 'https://example.test/new.webp', 'alt' => 'New', 'id' => 88 ] ] );
+
+		$this->assertStringContainsString( 'class="wp-image-88"', $out );
+	}
+
+	public function test_apply_swaps_cover_url_attribute(): void {
+		$out = Text_Replace::apply(
+			self::IMAGE_MARKUP,
+			[],
+			[],
+			[ 'https://example.test/patterns/images/desktop.webp' => [ 'url' => 'https://example.test/wp-content/uploads/2026/11/team.webp', 'alt' => '' ] ]
+		);
+
+		$this->assertStringContainsString( '"url":"https://example.test/wp-content/uploads/2026/11/team.webp"', $out );
+	}
+
+	public function test_apply_keeps_unmatched_images_byte_identical(): void {
+		$map = [ 'https://nowhere.test/missing.webp' => [ 'url' => 'https://example.test/new.webp', 'alt' => 'X' ] ];
+
+		$this->assertSame( self::IMAGE_MARKUP, Text_Replace::apply( self::IMAGE_MARKUP, [], [], $map ) );
+	}
+
+	public function test_unmatched_images_reports_urls_without_slots(): void {
+		$map = [
+			'https://example.test/patterns/images/desktop.webp' => [ 'url' => 'https://example.test/new.webp' ],
+			'https://nowhere.test/missing.webp'                  => [ 'url' => 'https://example.test/new.webp' ],
+		];
+
+		$this->assertSame( [ 'https://nowhere.test/missing.webp' ], Text_Replace::unmatched_images( self::IMAGE_MARKUP, $map ) );
+	}
+
+	public function test_every_listed_image_is_a_valid_slot(): void {
+		$slots = Text_Replace::images( self::IMAGE_MARKUP );
+		$map   = array_combine(
+			array_column( $slots, 'url' ),
+			array_map( fn( $i ) => [ 'url' => "https://example.test/new-{$i}.webp", 'alt' => "Alt {$i}" ], array_keys( $slots ) )
+		);
+
+		$this->assertSame( [], Text_Replace::unmatched_images( self::IMAGE_MARKUP, $map ) );
+		$this->assertSame( array_values( array_column( $map, 'url' ) ), array_column( Text_Replace::images( Text_Replace::apply( self::IMAGE_MARKUP, [], [], $map ) ), 'url' ) );
+	}
 }

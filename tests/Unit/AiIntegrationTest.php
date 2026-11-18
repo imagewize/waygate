@@ -276,4 +276,113 @@ class AiIntegrationTest extends TestCase {
 
 		$this->assertSame( array( 'error' => 'No page section patterns are registered.' ), $result );
 	}
+
+	// --- image assignment ---
+
+	private function register_image_pattern(): void {
+		WP_Block_Patterns_Registry::get_instance()->register(
+			[
+				'slug'    => 'elayne/hero',
+				'title'   => 'Hero',
+				'content' => '<!-- wp:image {"sizeSlug":"large"} --><figure class="wp-block-image size-large"><img src="https://example.test/patterns/images/hero.webp" alt="Back massage"/></figure><!-- /wp:image -->'
+					. '<!-- wp:cover {"url":"https://example.test/patterns/images/desktop.webp"} --><div class="wp-block-cover"></div><!-- /wp:cover -->',
+			]
+		);
+	}
+
+	public function test_images_prompt_numbers_slots_and_pictures(): void {
+		$prompt = AI_Integration::images_prompt(
+			'elayne/hero',
+			'day spa',
+			[
+				[ 'url' => 'https://example.test/patterns/images/hero.webp', 'alt' => 'Back massage' ],
+				[ 'url' => 'https://example.test/patterns/images/desktop.webp', 'alt' => '' ],
+			],
+			[
+				[ 'id' => 10, 'url' => 'https://example.test/uploads/team-office.webp', 'alt' => 'Photo of the team' ],
+				[ 'id' => 11, 'url' => 'https://example.test/uploads/treatment-room.webp', 'alt' => '' ],
+			]
+		);
+
+		$this->assertStringContainsString( "Theme/topic: day spa\n", $prompt );
+		$this->assertStringContainsString( "=== Image slots of elayne/hero ===\n", $prompt );
+		$this->assertStringContainsString( "0: Back massage | hero.webp\n", $prompt );
+		$this->assertStringContainsString( "1: (no alt text) | desktop.webp\n", $prompt );
+		$this->assertStringContainsString( "=== Pictures chosen by the user ===\n", $prompt );
+		$this->assertStringContainsString( "0: team-office.webp | Photo of the team\n", $prompt );
+	}
+
+	public function test_image_pairs_from_response_maps_numbers_strictly(): void {
+		$slots = [
+			[ 'url' => 'https://example.test/a.webp', 'alt' => 'A' ],
+			[ 'url' => 'https://example.test/b.webp', 'alt' => 'B' ],
+			[ 'url' => 'https://example.test/c.webp', 'alt' => 'C' ],
+		];
+		$attachments = [
+			[ 'id' => 10, 'url' => 'https://example.test/10.webp', 'alt' => 'Team' ],
+			[ 'id' => 11, 'url' => 'https://example.test/11.webp', 'alt' => 'Room' ],
+		];
+
+		$pairs = AI_Integration::image_pairs_from_response(
+			$slots,
+			$attachments,
+			array(
+				'slots' => array(
+					array( 'n' => 2, 'image' => 1 ),
+					array( 'n' => 0, 'image' => 0 ),
+					array( 'n' => 0, 'image' => 1 ),   // duplicate slot, dropped
+					array( 'n' => 1, 'image' => 1 ),   // picture 1 reused, dropped
+					array( 'n' => 9, 'image' => 0 ),   // slot out of range, dropped
+					array( 'n' => 1, 'image' => 7 ),   // picture out of range, dropped
+					array( 'n' => 1 ),                 // missing picture, dropped
+					'not an item',                     // dropped
+				),
+			)
+		);
+
+		$this->assertSame(
+			array(
+				array( 'n' => 0, 'id' => 10 ),
+				array( 'n' => 2, 'id' => 11 ),
+			),
+			$pairs
+		);
+	}
+
+	public function test_image_pairs_from_response_keeps_empty_on_garbage(): void {
+		$this->assertSame( array(), AI_Integration::image_pairs_from_response( array(), array(), 'nope' ) );
+		$this->assertSame( array(), AI_Integration::image_pairs_from_response( array(), array(), array( 'slots' => 'x' ) ) );
+	}
+
+	public function test_assign_images_errors_without_image_slots(): void {
+		WP_Block_Patterns_Registry::get_instance()->register(
+			[
+				'slug'    => 'elayne/text-only',
+				'title'   => 'Text only',
+				'content' => '<p>Just words</p>',
+			]
+		);
+
+		$result = AI_Integration::assign_images(
+			'elayne/text-only',
+			'day spa',
+			array( array( 'id' => 10, 'url' => 'https://example.test/10.webp', 'alt' => 'Team' ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'no_images', $result->get_error_code() );
+	}
+
+	public function test_assign_images_reports_ai_failure(): void {
+		$this->register_image_pattern();
+
+		$result = AI_Integration::assign_images(
+			'elayne/hero',
+			'day spa',
+			array( array( 'id' => 10, 'url' => 'https://example.test/10.webp', 'alt' => 'Team' ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'ai_failed', $result->get_error_code() );
+	}
 }

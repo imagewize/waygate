@@ -120,6 +120,42 @@ function update_post_meta( int $post_id, string $meta_key, mixed $meta_value ): 
 	return true;
 }
 
+function get_post_meta( int $post_id, string $key = '', bool $single = false ): mixed {
+	return $GLOBALS['wp_postmeta'][ $post_id ][ $key ] ?? '';
+}
+
+function absint( mixed $number ): int {
+	return abs( (int) $number );
+}
+
+function wp_parse_url( mixed $url, int $component = -1 ): mixed {
+	return parse_url( $url, $component );
+}
+
+$GLOBALS['wp_attachments'] = [];
+
+function wp_get_attachment_url( int $id ): string|false {
+	return $GLOBALS['wp_attachments'][ $id ] ?? false;
+}
+
+function wp_get_attachment_image_url( int $id, mixed $size = 'thumbnail' ): string|false {
+	return $GLOBALS['wp_attachments'][ $id ] ?? false;
+}
+
+class WP_Post {
+	public function __construct( private array $data ) {}
+
+	public function __get( string $name ): mixed {
+		return $this->data[ $name ] ?? null;
+	}
+}
+
+$GLOBALS['wp_posts'] = [];
+
+function get_post( ?int $id ): ?WP_Post {
+	return isset( $GLOBALS['wp_posts'][ $id ] ) ? new WP_Post( $GLOBALS['wp_posts'][ $id ] ) : null;
+}
+
 function wp_json_encode( mixed $value, int $options = 0 ): string|false {
 	return json_encode( $value, $options );
 }

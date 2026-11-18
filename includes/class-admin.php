@@ -19,8 +19,20 @@ class Admin {
 	 */
 	public static function init(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_media' ) );
 		add_action( 'add_meta_boxes', array( self::class, 'register_meta_box' ) );
 		add_action( 'enqueue_block_editor_assets', array( self::class, 'enqueue_editor_abilities' ) );
+	}
+
+	/**
+	 * Loads the media manager on the Tools → Waygate page, for choosing page images.
+	 *
+	 * @param string $hook_suffix Current admin page hook suffix.
+	 */
+	public static function enqueue_media( string $hook_suffix ): void {
+		if ( 'tools_page_waygate' === $hook_suffix ) {
+			wp_enqueue_media();
+		}
 	}
 
 	/**
@@ -229,6 +241,15 @@ class Admin {
 									<p class="description">The AI rewrites headings, paragraphs and button labels for your topic. Only text is swapped, so the page keeps the patterns' markup and stays valid in the editor. Adds a second AI call; uncheck for faster generation with the original pattern text.</p>
 								</td>
 							</tr>
+							<tr>
+								<th scope="row"><label for="waygate-images-add">Images</label></th>
+								<td>
+									<div id="waygate-images-list" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+									<button type="button" class="button" id="waygate-images-add">Choose images from the Media Library</button>
+									<input type="hidden" name="image_ids" id="waygate-image-ids" value="">
+									<p class="description">Optional. Pick or upload pictures for your page; the AI places them in the patterns' image slots. Slots left unfilled keep the patterns' original images. Needs JavaScript; the no-JS fallback generates without them.</p>
+								</td>
+							</tr>
 						</table>
 
 					<div id="waygate-generate-actions">
@@ -373,13 +394,15 @@ class Admin {
 						state.slugs     = result.data.patterns;
 						state.language  = result.data.language || '';
 						state.reasoning = result.data.reasoning || '';
+						state.sections  = new Array( state.slugs.length );
+						state.sectionIndex = 0;
 						if ( state.personalize ) {
-							state.sectionIndex = 0;
-							state.sections = [];
 							pairs();
-							return;
+						} else if ( state.imageIds.length ) {
+							images();
+						} else {
+							build();
 						}
-						build();
 					} ).catch( function () {
 						fail( 'Network or server error.', select );
 					} );
@@ -387,7 +410,12 @@ class Admin {
 
 				function pairs() {
 					if ( state.sectionIndex >= state.slugs.length ) {
-						build();
+						state.sectionIndex = 0;
+						if ( state.imageIds.length ) {
+							images();
+						} else {
+							build();
+						}
 						return;
 					}
 					var slug = state.slugs[ state.sectionIndex ];
@@ -398,7 +426,7 @@ class Admin {
 							fail( errorMessage( result ), pairs );
 							return;
 						}
-						state.sections.push( result.data.section || { pattern: slug } );
+						state.sections[ state.sectionIndex ] = result.data.section || { pattern: slug };
 						state.sectionIndex++;
 						pairs();
 					} ).catch( function () {
@@ -406,14 +434,42 @@ class Admin {
 					} );
 				}
 
+				function images() {
+					if ( state.sectionIndex >= state.slugs.length ) {
+						build();
+						return;
+					}
+					var slug = state.slugs[ state.sectionIndex ];
+
+					step( 'Placing images in section ' + ( state.sectionIndex + 1 ) + ' of ' + state.slugs.length );
+					post( 'generate/images', { description: state.description, slug: slug, ids: state.imageIds } ).then( function ( result ) {
+						if ( ! result.ok || result.data.error ) {
+							fail( errorMessage( result ), images );
+							return;
+						}
+						var section = state.sections[ state.sectionIndex ] || { pattern: slug };
+						if ( result.data.section && result.data.section.images && result.data.section.images.length ) {
+							section.images = result.data.section.images;
+						}
+						state.sections[ state.sectionIndex ] = section;
+						state.sectionIndex++;
+						images();
+					} ).catch( function () {
+						fail( 'Network or server error.', images );
+					} );
+				}
+
 				function build() {
 					step( 'Creating the draft page' );
+					var needsSections = state.personalize || state.imageIds.length > 0;
 					post( 'generate/build', {
 						title: state.title,
-						sections: state.personalize ? state.sections : state.slugs,
+						sections: needsSections ? state.sections : state.slugs,
 						slugs: state.slugs,
 						reasoning: state.reasoning,
-						personalized: state.personalize && state.sections.length > 0,
+						personalized: state.personalize && state.sections.some( function ( section ) {
+							return section && section.texts && section.texts.length;
+						} ),
 						template: state.template
 					} ).then( function ( result ) {
 						if ( ! result.ok || result.data.error ) {
@@ -439,12 +495,17 @@ class Admin {
 					var personalize = form.querySelector( 'input[name="personalize_text"]' );
 					var verticalEl   = document.getElementById( 'waygate-vertical' );
 					var templateEl   = document.getElementById( 'waygate-page-template' );
+					var idsEl        = document.getElementById( 'waygate-image-ids' );
+					var imageIds     = idsEl && idsEl.value ? idsEl.value.split( ',' ).map( Number ).filter( function ( n ) {
+						return n > 0;
+					} ) : [];
 
 					state = {
 						description: description,
 						personalize: ! personalize || personalize.checked,
 						vertical:    verticalEl ? verticalEl.value : '',
-						template:    templateEl ? templateEl.value : ''
+						template:    templateEl ? templateEl.value : '',
+						imageIds:    imageIds
 					};
 
 					status.style.display = 'block';
@@ -454,6 +515,85 @@ class Admin {
 					}
 
 					select();
+				} );
+			} )();
+
+			( function() {
+				var addBtn = document.getElementById( 'waygate-images-add' );
+				var list   = document.getElementById( 'waygate-images-list' );
+				var idsEl  = document.getElementById( 'waygate-image-ids' );
+				var frame  = null;
+				var chosen = [];
+
+				if ( ! addBtn || ! list || ! idsEl ) {
+					return;
+				}
+
+				function render() {
+					list.innerHTML = '';
+					idsEl.value = chosen.map( function ( image ) {
+						return image.id;
+					} ).join( ',' );
+
+					chosen.forEach( function ( image ) {
+						var wrap = document.createElement( 'span' );
+						wrap.style.display = 'inline-flex';
+						wrap.style.alignItems = 'flex-end';
+
+						var thumb = document.createElement( 'img' );
+						thumb.src = image.thumb;
+						thumb.alt = image.alt || '';
+						thumb.style.width = '60px';
+						thumb.style.height = '60px';
+						thumb.style.objectFit = 'cover';
+						thumb.style.display = 'block';
+
+						var remove = document.createElement( 'button' );
+						remove.type = 'button';
+						remove.className = 'button';
+						remove.textContent = '×';
+						remove.style.padding = '0 6px';
+						remove.setAttribute( 'aria-label', 'Remove this image' );
+						remove.onclick = function () {
+							chosen = chosen.filter( function ( other ) {
+								return other.id !== image.id;
+							} );
+							render();
+						};
+
+						wrap.appendChild( thumb );
+						wrap.appendChild( remove );
+						list.appendChild( wrap );
+					} );
+				}
+
+				addBtn.addEventListener( 'click', function () {
+					if ( ! window.wp || ! wp.media ) {
+						return;
+					}
+
+					if ( ! frame ) {
+						frame = wp.media( {
+							title: 'Choose images for your page',
+							button: { text: 'Use these images' },
+							library: { type: 'image' },
+							multiple: 'add'
+						} );
+
+						frame.on( 'select', function () {
+							chosen = frame.state().get( 'selection' ).map( function ( model ) {
+								var data = model.toJSON();
+								return {
+									id: data.id,
+									thumb: ( data.sizes && data.sizes.thumbnail && data.sizes.thumbnail.url ) || data.url,
+									alt: data.alt || ''
+								};
+							} );
+							render();
+						} );
+					}
+
+					frame.open();
 				} );
 			} )();
 			</script>

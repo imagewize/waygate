@@ -131,7 +131,7 @@ class Abilities_API {
 			'waygate/get-pattern',
 			array(
 				'label'               => __( 'Get Pattern', 'waygate' ),
-				'description'         => __( 'Returns one pattern: its block markup, the exact text strings waygate/create-page can replace ("texts") and its link targets ("links"). Use these strings verbatim as "find" values. Each text is one whole text run; a heading with inline emphasis has one text per run.', 'waygate' ),
+				'description'         => __( 'Returns one pattern: its block markup, the exact text strings waygate/create-page can replace ("texts"), its link targets ("links") and its numbered image slots ("images"). Use these strings verbatim as "find" values, and image slot numbers as "n" values in "images" pairs. Each text is one whole text run; a heading with inline emphasis has one text per run.', 'waygate' ),
 				'category'            => 'waygate',
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -167,6 +167,16 @@ class Abilities_API {
 							'type'  => 'array',
 							'items' => array( 'type' => 'string' ),
 						),
+						'images'      => array(
+							'type'  => 'array',
+							'items' => array(
+								'type'       => 'object',
+								'properties' => array(
+									'url' => array( 'type' => 'string' ),
+									'alt' => array( 'type' => 'string' ),
+								),
+							),
+						),
 					),
 				),
 				'execute_callback'    => function ( array $params ) {
@@ -190,7 +200,7 @@ class Abilities_API {
 			'waygate/create-page',
 			array(
 				'label'               => __( 'Create Page from Patterns', 'waygate' ),
-				'description'         => __( 'Creates a new WordPress page assembled from an ordered list of block patterns. Each item is a pattern slug, or an object with "pattern" plus "texts" and "links": lists of {find, replace} pairs whose find strings come verbatim from waygate/get-pattern. Replacements are plain text or URLs, never HTML. Returns warnings for find strings that matched nothing.', 'waygate' ),
+				'description'         => __( 'Creates a new WordPress page assembled from an ordered list of block patterns. Each item is a pattern slug, or an object with "pattern" plus "texts" and "links": lists of {find, replace} pairs whose find strings come verbatim from waygate/get-pattern, and "images": a list of {n, id} pairs filling the numbered image slots with media-library attachments. Replacements are plain text or URLs, never HTML. Returns warnings for find strings that matched nothing.', 'waygate' ),
 				'category'            => 'waygate',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -210,6 +220,18 @@ class Abilities_API {
 											'pattern' => array( 'type' => 'string' ),
 											'texts'   => self::pair_list_schema(),
 											'links'   => self::pair_list_schema(),
+											'images'  => array(
+												'type'  => 'array',
+												'items' => array(
+													'type' => 'object',
+													'properties' => array(
+														'n'  => array( 'type' => 'integer' ),
+														'id' => array( 'type' => 'integer' ),
+													),
+													'required' => array( 'n', 'id' ),
+													'additionalProperties' => false,
+												),
+											),
 										),
 										'required'   => array( 'pattern' ),
 										'additionalProperties' => false,

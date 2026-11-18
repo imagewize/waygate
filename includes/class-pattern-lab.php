@@ -110,11 +110,11 @@ class Pattern_Lab {
 	}
 
 	/**
-	 * Validate one page section: a pattern slug, or {pattern, texts?, links?} where texts and
-	 * links are lists of {find, replace} pairs.
+	 * Validate one page section: a pattern slug, or {pattern, texts?, links?, images?} where
+	 * texts and links are lists of {find, replace} pairs and images a list of {n, id} pairs.
 	 *
 	 * @param mixed $entry Section as given in a map or ability input.
-	 * @return array{pattern:string,texts:array[],links:array[]}|\WP_Error
+	 * @return array{pattern:string,texts:array[],links:array[],images:array}|\WP_Error
 	 */
 	public static function normalize_section( $entry ) {
 		if ( is_string( $entry ) ) {
@@ -129,6 +129,7 @@ class Pattern_Lab {
 			'pattern' => $entry['pattern'],
 			'texts'   => array(),
 			'links'   => array(),
+			'images'  => array(),
 		);
 
 		foreach ( array( 'texts', 'links' ) as $key ) {
@@ -148,6 +149,23 @@ class Pattern_Lab {
 				$section[ $key ][] = array(
 					'find'    => $pair['find'],
 					'replace' => $pair['replace'],
+				);
+			}
+		}
+
+		if ( isset( $entry['images'] ) ) {
+			if ( ! is_array( $entry['images'] ) || ! array_is_list( $entry['images'] ) ) {
+				return new \WP_Error( 'invalid_section', 'Images of ' . $entry['pattern'] . ' must be a list of image pairs.' );
+			}
+
+			foreach ( $entry['images'] as $pair ) {
+				if ( ! is_array( $pair ) || ! isset( $pair['n'], $pair['id'] ) || ! is_numeric( $pair['n'] ) || ! is_numeric( $pair['id'] ) ) {
+					return new \WP_Error( 'invalid_section', 'Images of ' . $entry['pattern'] . ' must be a list of image pairs.' );
+				}
+
+				$section['images'][] = array(
+					'n'  => (int) $pair['n'],
+					'id' => absint( $pair['id'] ),
 				);
 			}
 		}
@@ -175,6 +193,7 @@ class Pattern_Lab {
 					'content' => $content,
 					'texts'   => Text_Replace::texts( $content ),
 					'links'   => Text_Replace::links( $content ),
+					'images'  => Text_Replace::images( $content ),
 				)
 			);
 		}
@@ -183,24 +202,85 @@ class Pattern_Lab {
 	}
 
 	/**
-	 * One section's markup: the pattern inlined, with its text and link pairs applied.
+	 * The swap-in URL of a media-library attachment, or an empty string when it does not exist.
 	 *
-	 * @param array{pattern:string,texts:array[],links:array[]} $section From normalize_section().
-	 * @param int                                               $index   Section position, for warnings.
+	 * The large size is plenty for a pattern slot and lighter than the full file;
+	 * core falls back to the full URL when no large version exists.
+	 *
+	 * @param int $id Attachment ID.
+	 * @return string
+	 */
+	public static function attachment_image_url( int $id ): string {
+		if ( $id <= 0 ) {
+			return '';
+		}
+
+		$url = function_exists( 'wp_get_attachment_image_url' ) ? wp_get_attachment_image_url( $id, 'large' ) : false;
+
+		if ( ( false === $url || '' === $url ) && function_exists( 'wp_get_attachment_url' ) ) {
+			$url = wp_get_attachment_url( $id );
+		}
+
+		return is_string( $url ) ? esc_url_raw( $url ) : '';
+	}
+
+	/**
+	 * The alt text stored on a media-library attachment.
+	 *
+	 * @param int $id Attachment ID.
+	 * @return string
+	 */
+	public static function attachment_alt( int $id ): string {
+		$alt = function_exists( 'get_post_meta' ) ? get_post_meta( $id, '_wp_attachment_image_alt', true ) : '';
+
+		return is_string( $alt ) ? $alt : '';
+	}
+
+	/**
+	 * One section's markup: the pattern inlined, with its text, link and image pairs applied.
+	 *
+	 * @param array{pattern:string,texts:array[],links:array[],images:array} $section From normalize_section().
+	 * @param int                                                            $index   Section position, for warnings.
 	 * @return array{markup:string,warnings:string[]}
 	 */
 	private static function section_markup( array $section, int $index ): array {
 		$content  = self::expand_pattern_references( self::get_pattern_content( $section['pattern'] ) );
+		$slots    = Text_Replace::images( $content );
 		$texts    = Text_Replace::pairs_to_map( $section['texts'], 'sanitize_text_field' );
 		$links    = Text_Replace::pairs_to_map( $section['links'], 'esc_url_raw' );
 		$warnings = array();
+		$images   = array();
+
+		foreach ( $section['images'] as $pair ) {
+			if ( ! isset( $slots[ $pair['n'] ] ) ) {
+				$warnings[] = sprintf( 'Section %d (%s): image slot %d does not exist; see waygate/get-pattern for its image slots.', $index, $section['pattern'], $pair['n'] );
+				continue;
+			}
+
+			$url = self::attachment_image_url( $pair['id'] );
+
+			if ( '' === $url ) {
+				$warnings[] = sprintf( 'Section %d (%s): image slot %d attachment %d was not found; keeping the original image.', $index, $section['pattern'], $pair['n'], $pair['id'] );
+				continue;
+			}
+
+			$images[ $slots[ $pair['n'] ]['url'] ] = array(
+				'url' => $url,
+				'alt' => self::attachment_alt( $pair['id'] ),
+				'id'  => $pair['id'],
+			);
+		}
+
+		if ( ! empty( $images ) && count( $images ) < count( $slots ) ) {
+			$warnings[] = sprintf( 'Section %d (%s): kept the original image for %d of %d image slots.', $index, $section['pattern'], count( $slots ) - count( $images ), count( $slots ) );
+		}
 
 		foreach ( Text_Replace::unmatched( $content, $texts, $links ) as $find ) {
 			$warnings[] = sprintf( 'Section %d (%s): "%s" matched nothing; see waygate/get-pattern for its exact texts and links.', $index, $section['pattern'], $find );
 		}
 
 		return array(
-			'markup'   => Text_Replace::apply( $content, $texts, $links ),
+			'markup'   => Text_Replace::apply( $content, $texts, $links, $images ),
 			'warnings' => $warnings,
 		);
 	}
@@ -438,8 +518,8 @@ class Pattern_Lab {
 			}
 
 			if ( ! $expand ) {
-				if ( ! empty( $section['texts'] ) || ! empty( $section['links'] ) ) {
-					return new \WP_Error( 'references_with_replacements', "Pattern references cannot carry texts or links: {$slug}." );
+				if ( ! empty( $section['texts'] ) || ! empty( $section['links'] ) || ! empty( $section['images'] ) ) {
+					return new \WP_Error( 'references_with_replacements', "Pattern references cannot carry texts, links or images: {$slug}." );
 				}
 				$chunks[] = '<!-- wp:pattern {"slug":"' . esc_attr( $slug ) . '"} /-->';
 				continue;
@@ -557,13 +637,21 @@ class Pattern_Lab {
 
 			$section['pattern'] = $slug;
 			$valid[]            = $section;
-			$replacing          = $replacing || ! empty( $section['texts'] ) || ! empty( $section['links'] );
+			$replacing          = $replacing || ! empty( $section['texts'] ) || ! empty( $section['links'] ) || ! empty( $section['images'] );
 		}
 
 		$aludra_sections = self::aludra_sections( $valid );
 
 		if ( null !== $aludra_sections && self::use_aludra() ) {
 			$post_id = self::create_page_with_aludra( $title, $aludra_sections, $status, $warnings );
+
+			if ( ! is_wp_error( $post_id ) ) {
+				foreach ( $valid as $i => $section ) {
+					if ( ! empty( $section['images'] ) ) {
+						$warnings[] = sprintf( 'Section %d (%s): image pairs are not applied by aludra/compose-page; assign the images in the editor.', $i, $section['pattern'] );
+					}
+				}
+			}
 		} elseif ( empty( $valid ) ) {
 			return new \WP_Error( 'no_valid_patterns', 'No valid patterns were selected.' );
 		} else {
