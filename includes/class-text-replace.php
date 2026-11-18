@@ -96,6 +96,123 @@ class Text_Replace {
 	private const DELIMITER = '/<!--\s+(?P<closer>\/)?wp:(?P<name>[a-z][a-z0-9_-]*(?:\/[a-z][a-z0-9_-]*)?)\s+(?P<attrs>{(?:(?:[^}]+|}+(?=})|(?!}\s+\/?-->).)*+)?}\s+)?(?P<void>\/)?-->/s';
 
 	/**
+	 * Raster image file extensions. Anything else (notably SVG) is decorative, not a slot.
+	 */
+	private const RASTER_IMAGE = '/\.(jpe?g|png|webp|gif|avif)([?#]|$)/i';
+
+	/**
+	 * Replaceable image slots in block markup, numbered from 0 in document order.
+	 *
+	 * A slot is a photo the user may swap for their own: the src of a core/image block's
+	 * <img> tag, or the url of a block comment (core/cover's background). Decorative
+	 * graphics are not slots: SVGs, and an image block sized below 100px (icons, stars).
+	 * The same URL in several places is one slot; replacing it replaces every occurrence.
+	 *
+	 * @param string $content Block markup.
+	 * @return array<int, array{url: string, alt: string}> Slots, numbered from 0.
+	 */
+	public static function images( string $content ): array {
+		$slots = array();
+		$small = false;
+
+		foreach ( self::tokens( $content ) as $token ) {
+			if ( is_string( $token ) ) {
+				foreach ( self::html_images( $token, $small ) as $slot ) {
+					$slots[ $slot['url'] ] = $slot;
+				}
+				continue;
+			}
+
+			$small = false;
+
+			$is_opener = ! str_starts_with( $token['raw'], '<!-- /' );
+			$url_attr  = $token['attrs']['url'] ?? null;
+
+			if ( $is_opener && is_string( $url_attr ) && self::is_raster_image( $url_attr ) ) {
+				$url = html_entity_decode( $url_attr, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+				if ( ! isset( $slots[ $url ] ) ) {
+					$slots[ $url ] = array(
+						'url' => $url,
+						'alt' => (string) ( $token['attrs']['alt'] ?? '' ),
+					);
+				}
+			}
+
+			// A wp:image opener marks the <img> tag that follows it; remember icon sizes.
+			if ( $is_opener && 'image' === $token['name'] ) {
+				$w     = $token['attrs']['width'] ?? null;
+				$h     = $token['attrs']['height'] ?? null;
+				$small = ( null !== $w && self::px( $w ) < 100 ) || ( null !== $h && self::px( $h ) < 100 );
+			}
+		}
+
+		return array_values( $slots );
+	}
+
+	/**
+	 * Image slots in an HTML fragment, honoring the icon flag of the preceding block.
+	 *
+	 * @param string $html         HTML without block comments.
+	 * @param bool   $small_before True when the preceding core/image block is icon-sized.
+	 * @return array<int, array{url: string, alt: string}>
+	 */
+	private static function html_images( string $html, bool $small_before ): array {
+		preg_match_all( '/<img\b[^>]*>/i', $html, $tags );
+
+		$slots = array();
+
+		foreach ( $tags[0] as $tag ) {
+			if ( ! preg_match( '/\bsrc=(["\'])(.*?)\1/s', $tag, $src ) ) {
+				continue;
+			}
+
+			$url = html_entity_decode( $src[2], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+
+			if ( ! self::is_raster_image( $url ) || $small_before ) {
+				continue;
+			}
+
+			$alt = '';
+			if ( preg_match( '/\balt=(["\'])(.*?)\1/s', $tag, $alt_match ) ) {
+				$alt = html_entity_decode( $alt_match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+			}
+
+			$slots[] = array(
+				'url' => $url,
+				'alt' => $alt,
+			);
+		}
+
+		return $slots;
+	}
+
+	/**
+	 * Whether a URL points at a raster image file (not an SVG or other resource).
+	 *
+	 * @param string $url URL as written in the markup.
+	 * @return bool
+	 */
+	private static function is_raster_image( string $url ): bool {
+		return (bool) preg_match( self::RASTER_IMAGE, html_entity_decode( $url, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+	}
+
+	/**
+	 * The numeric value of an attribute such as "24px" or 24; 0 when absent or empty.
+	 *
+	 * @param mixed $value Attribute value.
+	 * @return float
+	 */
+	private static function px( $value ): float {
+		if ( ! is_string( $value ) && ! is_numeric( $value ) ) {
+			return 0.0;
+		}
+
+		$number = (float) preg_replace( '/[^0-9.]/', '', (string) $value );
+
+		return $number;
+	}
+
+	/**
 	 * Replaceable copy in block markup: HTML text runs, then text attributes, in document
 	 * order and without duplicates.
 	 *
@@ -158,17 +275,19 @@ class Text_Replace {
 	}
 
 	/**
-	 * Apply text and link replacements to block markup.
+	 * Apply text, link and image replacements to block markup.
 	 *
-	 * Block comments whose attributes do not change are kept byte for byte.
+	 * Block comments whose attributes do not change are kept byte for byte. An image
+	 * replacement is keyed by the slot's current URL; its "alt" and "id" are optional.
 	 *
-	 * @param string               $content Block markup.
-	 * @param array<string,string> $texts   Plain-text find => plain-text replace.
-	 * @param array<string,string> $links   URL find => sanitized URL replace.
+	 * @param string                                              $content Block markup.
+	 * @param array<string,string>                                $texts   Plain-text find => plain-text replace.
+	 * @param array<string,string>                                $links   URL find => sanitized URL replace.
+	 * @param array<string,array{url:string,alt?:string,id?:int}> $images Slot URL find => replacement.
 	 * @return string
 	 */
-	public static function apply( string $content, array $texts, array $links ): string {
-		if ( empty( $texts ) && empty( $links ) ) {
+	public static function apply( string $content, array $texts, array $links, array $images = array() ): string {
+		if ( empty( $texts ) && empty( $links ) && empty( $images ) ) {
 			return $content;
 		}
 
@@ -176,7 +295,7 @@ class Text_Replace {
 
 		foreach ( self::tokens( $content ) as $token ) {
 			if ( is_string( $token ) ) {
-				$out .= self::replace_hrefs( self::replace_html_text( $token, $texts ), $links );
+				$out .= self::replace_imgs( self::replace_hrefs( self::replace_html_text( $token, $texts ), $links ), $images );
 				continue;
 			}
 
@@ -185,11 +304,14 @@ class Text_Replace {
 
 			foreach ( $attrs as $key => $value ) {
 				$key = (string) $key;
-				if ( self::is_text_attr( $key, $value ) && array_key_exists( trim( $value ), $texts ) ) {
-					$attrs[ $key ] = $texts[ trim( $value ) ];
+				if ( self::is_text_attr( $key, $value ) && array_key_exists( trim( (string) $value ), $texts ) ) {
+					$attrs[ $key ] = $texts[ trim( (string) $value ) ];
 					$changed       = true;
 				} elseif ( in_array( $key, self::LINK_ATTRS, true ) && is_string( $value ) && array_key_exists( $value, $links ) ) {
 					$attrs[ $key ] = $links[ $value ];
+					$changed       = true;
+				} elseif ( 'url' === $key && is_string( $value ) && self::has_image( $value, $images ) ) {
+					$attrs[ $key ] = $images[ html_entity_decode( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ]['url'];
 					$changed       = true;
 				}
 			}
@@ -198,6 +320,19 @@ class Text_Replace {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Whether a URL as written in the markup (entity-encoded, maybe quoted) is an image key.
+	 *
+	 * @param string $url    URL as written in the markup.
+	 * @param array  $images Image replacement map.
+	 * @return bool
+	 */
+	private static function has_image( string $url, array $images ): bool {
+		$decoded = html_entity_decode( $url, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+
+		return isset( $images[ $decoded ] ) && is_array( $images[ $decoded ] ) && ! empty( $images[ $decoded ]['url'] );
 	}
 
 	/**
@@ -214,6 +349,85 @@ class Text_Replace {
 				array_diff( array_map( 'strval', array_keys( $texts ) ), self::texts( $content ) ),
 				array_diff( array_map( 'strval', array_keys( $links ) ), self::links( $content ) )
 			)
+		);
+	}
+
+	/**
+	 * Image find URLs that match no image slot, so a caller can report lost replacements.
+	 *
+	 * @param string                                              $content Block markup.
+	 * @param array<string,array{url:string,alt?:string,id?:int}> $images Slot URL find => replacement.
+	 * @return string[] Find URLs without a slot.
+	 */
+	public static function unmatched_images( string $content, array $images ): array {
+		return array_values(
+			array_diff( array_map( 'strval', array_keys( $images ) ), array_column( self::images( $content ), 'url' ) )
+		);
+	}
+
+	/**
+	 * Swap the src, alt and wp-image class of <img> tags whose slot is being replaced.
+	 *
+	 * The alt attribute is only touched when the replacement carries one, so a pattern
+	 * alt survives when the caller has no better text. An "id" rewrites the wp-image-{id}
+	 * class, which is how the editor recognizes media-library attachments.
+	 *
+	 * @param string                                              $html   HTML without block comments.
+	 * @param array<string,array{url:string,alt?:string,id?:int}> $images Slot URL find => replacement.
+	 * @return string
+	 */
+	private static function replace_imgs( string $html, array $images ): string {
+		if ( empty( $images ) || ! str_contains( $html, '<img' ) ) {
+			return $html;
+		}
+
+		return (string) preg_replace_callback(
+			'/<img\b[^>]*>/i',
+			static function ( array $m ) use ( $images ): string {
+				$tag = $m[0];
+
+				if ( ! preg_match( '/\bsrc=(["\'])(.*?)\1/s', $tag, $src ) ) {
+					return $tag;
+				}
+
+				$url = html_entity_decode( $src[2], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+
+				if ( ! isset( $images[ $url ] ) || ! is_array( $images[ $url ] ) || empty( $images[ $url ]['url'] ) ) {
+					return $tag;
+				}
+
+				$new = $images[ $url ];
+
+				$tag = (string) preg_replace_callback(
+					'/\bsrc=(["\'])(.*?)\1/s',
+					static function ( array $s ) use ( $new ): string {
+						return 'src=' . $s[1] . htmlspecialchars( $new['url'], ENT_QUOTES, 'UTF-8' ) . $s[1];
+					},
+					$tag,
+					1
+				);
+
+				if ( array_key_exists( 'alt', $new ) && is_string( $new['alt'] ) ) {
+					$alt = htmlspecialchars( $new['alt'], ENT_QUOTES, 'UTF-8' );
+					if ( preg_match( '/\balt=(["\'])(.*?)\1/s', $tag ) ) {
+						$tag = (string) preg_replace_callback(
+							'/\balt=(["\'])(.*?)\1/s',
+							static fn( array $s ): string => 'alt=' . $s[1] . $alt . $s[1],
+							$tag,
+							1
+						);
+					} else {
+						$tag = substr( $tag, 0, -1 ) . ' alt="' . $alt . '">';
+					}
+				}
+
+				if ( ! empty( $new['id'] ) && preg_match( '/wp-image-(\d+)/', $tag, $class ) ) {
+					$tag = str_replace( 'wp-image-' . $class[1], 'wp-image-' . (int) $new['id'], $tag );
+				}
+
+				return $tag;
+			},
+			$html
 		);
 	}
 
