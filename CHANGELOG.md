@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **AI image selection from the Media Library** (#21). An **Images** row on the AI form (Tools → Waygate)
+  opens the WordPress media frame — pick existing pictures or upload new ones — and the AI places them
+  in the generated page's image slots: one `waygate/v1/generate/images` request per section, like the
+  text rewrite step. Slots left unfilled keep the pattern's original image; the build reports a warning
+  when they do. `waygate/get-pattern` now lists a pattern's numbered image slots, and
+  `waygate/create-page` sections accept `images: [{n, id}]` pairs (slot number → attachment ID), so
+  agents and `wp waygate` maps can swap images too. Pattern icons and SVG decorations are never
+  replaced. Aludra-composed pages skip image pairs with a warning until `aludra/compose-page` supports them
 - **Page template** select in the AI form (Tools → Waygate) — created pages get the chosen template (`_wp_page_template`), for example a no-title template for a full-width homepage. Defaults to the theme's normal template; works for Aludra-built pages too
 - **Stepwise AI generation in the admin form.** Generation runs as a series of short REST requests
   (`waygate/v1/generate/select`, `/generate/pairs`, `/generate/build`): one AI call picks the

@@ -12,11 +12,14 @@ Everything happens on **Tools → Waygate** (requires `manage_options`; creating
 4. Pick a **Page template**, for example a no-title template for a full-width homepage.
 5. Leave **Rewrite pattern text to match my description** on for on-topic copy, or turn it off for
    a faster result that keeps the patterns' sample text.
-6. Click **Generate Page**. The form runs the generation as a series of short requests — one to
-   choose the patterns, one per section to rewrite its text, one to create the draft — and shows
-   each step's progress. A failed step shows a **Retry this step** button and picks up where it
-   stopped. Without JavaScript the form falls back to a single request for the whole flow.
-7. Open the draft in the block editor, adjust and publish.
+6. Optionally choose **Images**: click **Choose images from the Media Library** and pick or
+   upload pictures for your page. The AI places them in the patterns' image slots.
+7. Click **Generate Page**. The form runs the generation as a series of short requests — one to
+   choose the patterns, one per section to rewrite its text, plus one per section to place your
+   images — and shows each step's progress. A failed step shows a **Retry this step** button and
+   picks up where it stopped. Without JavaScript the form falls back to a single request for the
+   whole flow (your images are not placed in that fallback).
+8. Open the draft in the block editor, adjust and publish.
 
 Below the form, the **pattern catalog** lists every pattern Waygate can use, filterable by
 category.
@@ -43,7 +46,7 @@ With rewriting on, a second AI call rewrites the headings, paragraphs, button la
 labels of the chosen patterns to fit your description. The AI never sees or writes markup: it
 gets each pattern's texts as numbered lines and answers with new text per line number. Waygate
 turns that into the same find/replace pairs `waygate/create-page` takes (see
-[Replacing text and links](api.md#replacing-text-and-links)), so the page keeps the patterns'
+[Replacing text, links and images](api.md#replacing-text-links-and-images)), so the page keeps the patterns'
 markup and stays valid in the editor.
 
 - Texts without a letter, such as `3,600+` or `20+`, are not offered, so the AI cannot invent
@@ -65,9 +68,26 @@ markup and stays valid in the editor.
   generation continues. If a rewrite step fails outright, the form shows **Retry this step** and
   picks up where it stopped; in the single-run flows the page is still created with the patterns'
   text and the notice says why.
-- Links and images keep the patterns' values.
+- Links keep the patterns' values.
 - The pairs are stored as inlined pattern content, not `wp:pattern` references. Read the draft
   before publishing: the copy is the AI's.
+
+## Image selection
+
+Pick or upload pictures with the **Images** row, and the AI decides which pattern each picture
+belongs in and which slot it fills. Slots are a pattern's photos: `core/image` blocks and
+background images (`core/cover`). Decorative graphics — icons, stars, arrows, SVGs and
+anything under 100px — are never slots, so they stay untouched.
+
+- Each picture fills at most one slot per section; the AI sees each slot's alt text and each
+  picture's filename and alt text.
+- A swapped image uses the attachment's large size URL, and the attachment's alt text replaces
+  the pattern's, so screens readers and the editor both see the new picture.
+- Slots nothing fits, or a page with more slots than pictures, keep the pattern's original
+  image; the build reports a warning when that happens.
+- A pattern with no image slots is kept as is; the image step for it makes no AI call.
+- Pages composed by Aludra's `aludra/compose-page` skip image pairs (with a warning) until
+  Aludra supports them; edit those in the block editor instead.
 
 ## After generation
 

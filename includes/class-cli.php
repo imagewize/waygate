@@ -21,7 +21,7 @@ class CLI {
 	 * Format: {"pages":[{"id":5,"patterns":["elayne/legal-hero-form"]},
 	 * {"slug":"about","title":"About","patterns":["elayne/page-legal-about"],"template":"default","status":"draft"}]}
 	 * A page needs an `id` or a `slug`; `title`, `template` and `status` are optional.
-	 * A pattern is a slug, or {"pattern":"elayne/hero","texts":[{"find":"…","replace":"…"}],"links":[…]}.
+	 * A pattern is a slug, or {"pattern":"elayne/hero","texts":[{"find":"…","replace":"…"}],"links":[…],"images":[{"n":0,"id":42}]}.
 	 *
 	 * @param string $json Raw map file contents.
 	 * @return array[]|\WP_Error List of page entries, or WP_Error describing the first problem.

@@ -5,7 +5,7 @@
 | Ability | Runs | Permission | What it does |
 |---|---|---|---|
 | `waygate/list-patterns` | Server | `edit_posts` | Lists patterns; optional `category` filter, e.g. `hero` |
-| `waygate/get-pattern` | Server | `edit_posts` | One pattern's markup plus the exact `texts` and `links` that `create-page` can replace (`slug`) |
+| `waygate/get-pattern` | Server | `edit_posts` | One pattern's markup plus the exact `texts`, `links` and numbered image slots that `create-page` can replace (`slug`) |
 | `waygate/create-page` | Server | `publish_pages` | Creates a page from an ordered list of patterns (`title`, `patterns`, `status`); returns `warnings` |
 | `waygate/insert-pattern` | Block editor | — | Inserts a pattern (`slug`) at the cursor |
 
@@ -13,10 +13,12 @@ The server abilities are in the `waygate` category and exposed over REST at
 `/wp-json/wp-abilities/v1/abilities/waygate/<name>/run`. Run them from PHP or WP-CLI with
 `wp_get_ability( 'waygate/create-page' )->execute( $input )`.
 
-### Replacing text and links
+### Replacing text, links and images
 
 Each item in `patterns` is a slug, or a section with `texts` and `links`: lists of
-`{find, replace}` pairs. Take the find strings verbatim from `waygate/get-pattern`.
+`{find, replace}` pairs, and `images`: a list of `{n, id}` pairs. Take the find strings verbatim
+from `waygate/get-pattern`; `n` is an image slot number from the same call, `id` a media-library
+attachment.
 
 ```json
 {
@@ -25,7 +27,8 @@ Each item in `patterns` is a slug, or a section with `texts` and `links`: lists 
     {
       "pattern": "elayne/salon-hero",
       "texts": [{ "find": "Your beauty, our passion", "replace": "Colour and cuts in Utrecht" }],
-      "links": [{ "find": "/contact", "replace": "/book" }]
+      "links": [{ "find": "/contact", "replace": "/book" }],
+      "images": [{ "n": 0, "id": 42 }]
     },
     "elayne/salon-services"
   ]
@@ -38,6 +41,10 @@ Each item in `patterns` is a slug, or a section with `texts` and `links`: lists 
 - Replacements are plain text or URLs. Text is escaped, URLs are sanitized; neither can add markup.
 - Structural attributes (class names, layout, colours, IDs) are never replaced.
 - A find that matches nothing is reported in `warnings` and the page is still created.
+- An image pair swaps the slot's `src` (or the cover block's `url`) for the attachment's large
+  size, and its alt text for the attachment's alt. Unknown slot numbers, missing attachments and
+  slots left unfilled are reported in `warnings`; the page keeps the pattern's original image
+  there. Aludra-composed pages drop image pairs with a warning.
 - Once any section has pairs, every pattern on the page is inlined instead of stored as a
   `wp:pattern` reference. A page made only of Aludra patterns goes to `aludra/compose-page`
   with the pairs passed on.
