@@ -9,8 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Page template** select in the AI form (Tools → Waygate) — created pages get the chosen template (`_wp_page_template`), for example a no-title template for a full-width homepage. Defaults to the theme's normal template; works for Aludra-built pages too
-- Progress feedback while generating: the submit button hides and a spinner with a message ("Choosing patterns…" / "Choosing patterns and rewriting text…") shows, since generation can take minutes
-- `AI_Integration::generate_page()` and `Pattern_Lab::create_page()` take an optional `$template` argument, applied as `_wp_page_template` post meta
+- **Stepwise AI generation in the admin form.** Generation runs as a series of short REST requests
+  (`waygate/v1/generate/select`, `/generate/pairs`, `/generate/build`): one AI call picks the
+  patterns, one request per section rewrites that section's texts, one request creates the draft.
+  No single request runs long enough to hit a web server's upstream read timeout (nginx's default
+  `fastcgi_read_timeout` is 60 seconds), which used to cut the old single-request generation
+  mid-stream: a blank page, `net::ERR_INCOMPLETE_CHUNKED_ENCODING` in the browser, and no draft.
+  The form shows real per-step progress ("Rewriting section 3 of 6…") and a **Retry this step**
+  button that resumes where the flow stopped. Requires `publish_pages`; `generate/build` shares
+  the page-creation rate limit with `waygate/v1/pages`
+- `waygate_ai_step_timeout` filter (default 45 seconds, capped by `waygate_ai_request_timeout`)
+  for the per-section rewrite requests
+- `AI_Integration::select_patterns()`, `record_page_meta()` and `step_timeout()`; `ask()` and
+  `personalize_sections()` take an optional timeout
+
+### Changed
+- The admin form's text-rewriting step now retries per section instead of one batched AI call for
+  the whole page; sections with nothing to rewrite are kept as is. Without JavaScript the form
+  falls back to the previous single-request flow (`generate_page()`), unchanged for `wp waygate`
+  and smoke scripts
+- `AI_Integration::generate_page()` builds on `select_patterns()`; behavior unchanged
+- `docs/generating-pages.md` documents the stepped flow, the request timeouts and a
+  troubleshooting section for timeout-cut requests (symptoms, log locations, nginx fix)
 
 ## [1.3.0] - 2026-11-14
 

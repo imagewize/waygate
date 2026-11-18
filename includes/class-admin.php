@@ -237,7 +237,7 @@ class Admin {
 					<div id="waygate-generate-status" style="display:none;margin-top:12px">
 						<span class="spinner" style="float:none;margin:0 6px 0 0;visibility:visible"></span>
 						<strong id="waygate-generate-message">Generating page…</strong>
-						<p class="description" style="margin:4px 0 0">This can take up to a few minutes because Waygate calls the AI twice: once to choose patterns, then again to rewrite the text.</p>
+						<p class="description" id="waygate-generate-hint" style="margin:4px 0 0">Each step runs as its own server request, so a slow AI answer cannot hit your server's request timeout. A failed step can be retried where it stopped.</p>
 					</div>
 				</form>
 			</div>
@@ -258,26 +258,202 @@ class Admin {
 				var form     = document.getElementById( 'waygate-generate-form' );
 				var actions  = document.getElementById( 'waygate-generate-actions' );
 				var status   = document.getElementById( 'waygate-generate-status' );
+				var spinner  = status ? status.querySelector( '.spinner' ) : null;
 				var message  = document.getElementById( 'waygate-generate-message' );
+				var hint     = document.getElementById( 'waygate-generate-hint' );
 				var textarea = document.getElementById( 'description' );
 
 				if ( ! form || ! actions || ! status || ! message ) {
 					return;
 				}
 
-				form.addEventListener( 'submit', function() {
+				if ( ! window.fetch ) {
+					// No fetch support: keep the plain form submit (one long server request).
+					form.addEventListener( 'submit', function() {
+						message.textContent = 'Generating page…';
+						actions.style.display = 'none';
+						status.style.display  = 'block';
+					} );
+					return;
+				}
+
+				var root  = <?php echo wp_json_encode( esc_url_raw( rest_url( Rest_API::NAMESPACE . '/' ) ) ); ?>;
+				var nonce = <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?>;
+
+				var state = null;
+
+				function post( route, body ) {
+					return fetch( root + route, {
+						method: 'POST',
+						credentials: 'same-origin',
+						headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+						body: JSON.stringify( body )
+					} ).then( function ( response ) {
+						return response.json().then( function ( data ) {
+							return { ok: response.ok, data: data };
+						} );
+					} );
+				}
+
+				function errorMessage( result ) {
+					if ( result.data ) {
+						if ( result.data.error ) {
+							return result.data.error;
+						}
+						if ( ! result.ok && result.data.message ) {
+							return result.data.message;
+						}
+					}
+					return 'Unexpected response from the server.';
+				}
+
+				function setHint( text ) {
+					if ( hint ) {
+						hint.innerHTML = text;
+					}
+				}
+
+				function step( label ) {
+					state.lastLabel = label;
+					if ( spinner ) {
+						spinner.style.visibility = 'visible';
+					}
+					message.textContent = label + '…';
+					setHint( '' );
+
+					var retry = document.getElementById( 'waygate-generate-retry' );
+					if ( retry ) {
+						retry.parentNode.removeChild( retry );
+					}
+				}
+
+				function fail( text, resume ) {
+					if ( spinner ) {
+						spinner.style.visibility = 'hidden';
+					}
+					message.textContent = 'Generation failed: ' + text;
+
+					var retry = document.getElementById( 'waygate-generate-retry' );
+					if ( ! retry ) {
+						retry = document.createElement( 'button' );
+						retry.type = 'button';
+						retry.className = 'button';
+						retry.id = 'waygate-generate-retry';
+						retry.style.marginTop = '8px';
+						retry.textContent = 'Retry this step';
+						status.appendChild( retry );
+					}
+					retry.onclick = resume;
+				}
+
+				function finish( data ) {
+					if ( spinner ) {
+						spinner.style.visibility = 'hidden';
+					}
+					message.textContent = 'Done. Draft page "' + state.title + '" created.';
+					var html = '<a class="button button-primary" href="' + data.edit_url + '">Edit draft</a> <a class="button" href="' + data.view_url + '">View page</a>';
+					if ( data.warnings && data.warnings.length ) {
+						html += '<br>' + data.warnings.length + ' replacement' + ( data.warnings.length > 1 ? 's' : '' ) + ' could not be placed.';
+					}
+					setHint( html );
+					actions.style.display = '';
+					if ( textarea ) {
+						textarea.readOnly = false;
+					}
+				}
+
+				function select() {
+					step( 'Choosing patterns' );
+					post( 'generate/select', { description: state.description, vertical: state.vertical } ).then( function ( result ) {
+						if ( ! result.ok || result.data.error ) {
+							fail( errorMessage( result ), select );
+							return;
+						}
+						state.title     = result.data.title;
+						state.slugs     = result.data.patterns;
+						state.language  = result.data.language || '';
+						state.reasoning = result.data.reasoning || '';
+						if ( state.personalize ) {
+							state.sectionIndex = 0;
+							state.sections = [];
+							pairs();
+							return;
+						}
+						build();
+					} ).catch( function () {
+						fail( 'Network or server error.', select );
+					} );
+				}
+
+				function pairs() {
+					if ( state.sectionIndex >= state.slugs.length ) {
+						build();
+						return;
+					}
+					var slug = state.slugs[ state.sectionIndex ];
+
+					step( 'Rewriting section ' + ( state.sectionIndex + 1 ) + ' of ' + state.slugs.length );
+					post( 'generate/pairs', { description: state.description, slug: slug, language: state.language } ).then( function ( result ) {
+						if ( ! result.ok || result.data.error ) {
+							fail( errorMessage( result ), pairs );
+							return;
+						}
+						state.sections.push( result.data.section || { pattern: slug } );
+						state.sectionIndex++;
+						pairs();
+					} ).catch( function () {
+						fail( 'Network or server error.', pairs );
+					} );
+				}
+
+				function build() {
+					step( 'Creating the draft page' );
+					post( 'generate/build', {
+						title: state.title,
+						sections: state.personalize ? state.sections : state.slugs,
+						slugs: state.slugs,
+						reasoning: state.reasoning,
+						personalized: state.personalize && state.sections.length > 0,
+						template: state.template
+					} ).then( function ( result ) {
+						if ( ! result.ok || result.data.error ) {
+							fail( errorMessage( result ), build );
+							return;
+						}
+						finish( result.data );
+					} ).catch( function () {
+						fail( 'Network or server error.', build );
+					} );
+				}
+
+				form.addEventListener( 'submit', function ( event ) {
+					event.preventDefault();
+
+					var description = textarea ? textarea.value.trim() : '';
+					if ( ! description ) {
+						message.textContent = 'Please describe the page you want to create.';
+						status.style.display = 'block';
+						return;
+					}
+
 					var personalize = form.querySelector( 'input[name="personalize_text"]' );
-					var step        = personalize && personalize.checked
-						? 'Choosing patterns and rewriting text…'
-						: 'Choosing patterns…';
+					var verticalEl   = document.getElementById( 'waygate-vertical' );
+					var templateEl   = document.getElementById( 'waygate-page-template' );
 
-					message.textContent = step;
+					state = {
+						description: description,
+						personalize: ! personalize || personalize.checked,
+						vertical:    verticalEl ? verticalEl.value : '',
+						template:    templateEl ? templateEl.value : ''
+					};
+
+					status.style.display = 'block';
 					actions.style.display = 'none';
-					status.style.display  = 'block';
-
 					if ( textarea ) {
 						textarea.readOnly = true;
 					}
+
+					select();
 				} );
 			} )();
 			</script>

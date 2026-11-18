@@ -120,6 +120,14 @@ function update_post_meta( int $post_id, string $meta_key, mixed $meta_value ): 
 	return true;
 }
 
+function wp_json_encode( mixed $value, int $options = 0 ): string|false {
+	return json_encode( $value, $options );
+}
+
+function current_time( string $type ): string {
+	return '2026-11-18 00:00:00';
+}
+
 function get_edit_post_link( int $id, string $context = 'display' ): string {
 	return "https://example.com/wp-admin/post.php?post={$id}&action=edit";
 }

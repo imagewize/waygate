@@ -33,6 +33,30 @@ wp-ops rsync-package-to-site plugin waygate ~/code/waygate
   `/spa/`, `/legal/`, etc.).
 - Set `MISTRAL_API_KEY` in the demo site's `.env` for AI generation.
 
+## Debugging on the demo site
+
+Run commands inside the Lima-based VM from the repo root (not the `trellis/` directory, which the
+CLI reads as an uninitialized project and reports "VM is not running" while it actually runs):
+
+```bash
+cd ~/code/imagewize.com && trellis vm shell --workdir /srv/www/demo.imagewize.com/current -- <command>
+```
+
+Logs are readable with the current VM user — no sudo needed:
+
+- WordPress `debug.log`: `/srv/www/demo.imagewize.com/logs/debug.log` (path comes from
+  `WP_DEBUG_LOG` in the demo site's `.env`). Filter with `grep -E "18-Nov-2026.09:2"` style
+  patterns — the trellis CLI strips quotes, so avoid spaces in arguments.
+- The demo vhost's nginx `access.log` and `error.log` sit next to it in
+  `/srv/www/demo.imagewize.com/logs/` (each Trellis site logs there, not in `/var/log/nginx`).
+- `/var/log/nginx/error.log` and `/var/log/php8.4-fpm.log` are root-only; the site-local logs are
+  the ones worth reading.
+
+Known gotcha: a blank wp-admin page with `net::ERR_INCOMPLETE_CHUNKED_ENCODING` in the browser and
+a short `200` response in `access.log` means nginx's `fastcgi_read_timeout` (60 seconds by default)
+cut a long-running request — look for `upstream timed out` in the site's `error.log`. This is what
+killed AI page generation before the stepwise flow (`waygate/v1/generate/*`) landed.
+
 ## Docs and commits
 
 - `docs/` holds public reference only; roadmaps and plans live in the private `imagewize.com` repo,

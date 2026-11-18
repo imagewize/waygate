@@ -109,15 +109,32 @@ class AI_Integration {
 	}
 
 	/**
+	 * Seconds Waygate waits for a single AI answer in a step request (one pattern's texts),
+	 * filterable via waygate_ai_step_timeout.
+	 *
+	 * Kept below web servers' upstream read timeouts (nginx's fastcgi_read_timeout defaults
+	 * to 60 seconds), so a step request finishes before the server cuts the connection.
+	 * Never above request_timeout().
+	 *
+	 * @return float
+	 */
+	public static function step_timeout(): float {
+		$timeout = apply_filters( 'waygate_ai_step_timeout', 45.0 );
+
+		return min( is_numeric( $timeout ) && (float) $timeout > 0 ? (float) $timeout : 45.0, self::request_timeout() );
+	}
+
+	/**
 	 * Start an AI Client prompt with Waygate's model preferences and request timeout.
 	 *
-	 * @param string $text   User prompt.
-	 * @param string $system System instruction.
-	 * @param array  $schema JSON schema of the expected answer.
-	 * @param string $task   Task for get_model_preferences().
+	 * @param string     $text    User prompt.
+	 * @param string     $system  System instruction.
+	 * @param array      $schema  JSON schema of the expected answer.
+	 * @param string     $task    Task for get_model_preferences().
+	 * @param float|null $timeout Seconds to wait; defaults to request_timeout().
 	 * @return string|\WP_Error The generated text.
 	 */
-	private static function ask( string $text, string $system, array $schema, string $task = 'select' ) {
+	private static function ask( string $text, string $system, array $schema, string $task = 'select', ?float $timeout = null ) {
 		$builder = wp_ai_client_prompt( $text )
 			->using_system_instruction( $system )
 			->as_json_response( $schema )
@@ -125,7 +142,7 @@ class AI_Integration {
 
 		if ( class_exists( '\WordPress\AiClient\Providers\Http\DTO\RequestOptions' ) ) {
 			$builder = $builder->using_request_options(
-				\WordPress\AiClient\Providers\Http\DTO\RequestOptions::fromArray( array( 'timeout' => self::request_timeout() ) )
+				\WordPress\AiClient\Providers\Http\DTO\RequestOptions::fromArray( array( 'timeout' => $timeout ?? self::request_timeout() ) )
 			);
 		}
 
@@ -322,13 +339,14 @@ class AI_Integration {
 	 * page keeps the patterns' markup and stays valid in the editor. Works for Aludra patterns
 	 * too, since the pairs are passed on to aludra/compose-page.
 	 *
-	 * @param string[] $slugs    Ordered list of validated pattern slugs.
-	 * @param string   $theme    The user's page description.
-	 * @param string   $language Language to write in, e.g. "English"; empty to leave it to the model.
+	 * @param string[]   $slugs    Ordered list of validated pattern slugs.
+	 * @param string     $theme  The user's page description.
+	 * @param string     $language Language to write in, e.g. "English"; empty to leave it to the model.
+	 * @param float|null $timeout  Seconds to wait for the AI answer; defaults to request_timeout().
 	 * @return array<int,string|array>|\WP_Error Sections for Pattern_Lab::create_page(), or why
 	 *                                           the texts could not be rewritten.
 	 */
-	public static function personalize_sections( array $slugs, string $theme, string $language = '' ) {
+	public static function personalize_sections( array $slugs, string $theme, string $language = '', ?float $timeout = null ) {
 		$texts_by_slug = self::rewritable_texts( $slugs );
 
 		if ( empty( $texts_by_slug ) ) {
@@ -370,7 +388,7 @@ class AI_Integration {
 			. '- Write in the language given after "Write in:"; otherwise in the language the topic description is written in, even if it names a place where another language is spoken';
 
 		try {
-			$raw = self::ask( self::pairs_prompt( $texts_by_slug, $theme, $language ), $system, $schema, 'rewrite' );
+			$raw = self::ask( self::pairs_prompt( $texts_by_slug, $theme, $language ), $system, $schema, 'rewrite', $timeout );
 		} catch ( \Throwable $e ) {
 			return new \WP_Error( 'ai_failed', 'AI request failed: ' . $e->getMessage() );
 		}
@@ -439,29 +457,25 @@ class AI_Integration {
 	}
 
 	/**
-	 * Ask the AI to select patterns and assemble a draft page.
+	 * Ask the AI to select page section patterns for a description (one AI call).
 	 *
-	 * @param string $description      Natural-language description of the desired page.
-	 * @param bool   $personalize_text When true, a second AI call rewrites the selected patterns'
-	 *                                 texts for the description, as find/replace pairs.
-	 * @param string $vertical         Optional vertical slug (e.g. "legal"); limits the choice to that
-	 *                                 vertical's patterns when it has at least three page sections.
-	 * @param string $template         Optional page template slug, e.g. "page-no-title".
-	 * @return array{title:string,patterns:string[],pattern_count:int,reasoning:string,personalized:bool,warnings:string[],text_error:string,edit_url:string,view_url:string}|array{error:string}
+	 * The first, short step of the admin generation flow: the REST endpoints drive
+	 * selection, per-pattern rewrite and page creation as separate requests, each below
+	 * web-server upstream read timeouts (nginx's fastcgi_read_timeout defaults to 60 seconds).
+	 *
+	 * @param string $description Natural-language description of the desired page.
+	 * @param string $vertical    Optional vertical slug (e.g. "legal"); limits the choice to that
+	 *                            vertical's patterns when it has at least three page sections.
+	 * @return array{title:string,patterns:string[],reasoning:string,language:string}|array{error:string}
 	 */
-	public static function generate_page( string $description, bool $personalize_text = true, string $vertical = '', string $template = '' ): array {
-		// Two AI calls of up to request_timeout() each can outlast PHP's limit on a web request.
-		if ( function_exists( 'set_time_limit' ) ) {
-			set_time_limit( (int) ceil( 2 * self::request_timeout() ) + 60 ); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- two AI calls can outlast the default limit.
-		}
+	public static function select_patterns( string $description, string $vertical = '' ): array {
+		$pattern_list = self::get_candidate_patterns( $vertical );
 
-		$patterns = self::get_candidate_patterns( $vertical );
-
-		if ( empty( $patterns ) ) {
+		if ( empty( $pattern_list ) ) {
 			return array( 'error' => 'No page section patterns are registered.' );
 		}
 
-		$pattern_detail = self::describe_patterns( $patterns );
+		$pattern_detail = self::describe_patterns( $pattern_list );
 
 		$schema = array(
 			'type'       => 'object',
@@ -524,22 +538,58 @@ class AI_Integration {
 		}
 
 		// Keep only slugs that were offered, so the AI cannot place a header, template or other vertical.
-		$offered = array_column( $patterns, 'slug' );
+		$offered = array_column( $pattern_list, 'slug' );
 		$slugs   = array_values( array_filter( (array) $data['patterns'], fn( $s ) => in_array( $s, $offered, true ) ) );
 
 		if ( empty( $slugs ) ) {
 			return array( 'error' => 'AI selected no patterns from the offered list.' );
 		}
 
-		$page_title   = $data['title'] ?? $description;
+		return array(
+			'title'     => is_string( $data['title'] ?? null ) ? sanitize_text_field( $data['title'] ) : $description,
+			'patterns'  => $slugs,
+			'reasoning' => is_string( $data['reasoning'] ?? null ) ? sanitize_text_field( $data['reasoning'] ) : '',
+			'language'  => is_string( $data['language'] ?? null ) ? sanitize_text_field( $data['language'] ) : '',
+		);
+	}
+
+	/**
+	 * Ask the AI to select patterns and assemble a draft page in one PHP run.
+	 *
+	 * Still used by wp waygate, /waygate/v1/generate/* callers that prefer a single call, and as
+	 * the admin no-JS fallback. The admin JS flow drives select_patterns(), personalize_sections()
+	 * and the waygate/v1/generate/* endpoints instead, so each AI call runs as its own request
+	 * below web-server upstream read timeouts.
+	 *
+	 * @param string $description      Natural-language description of the desired page.
+	 * @param bool   $personalize_text When true, a second AI call rewrites the selected patterns'
+	 *                                 texts for the description, as find/replace pairs.
+	 * @param string $vertical         Optional vertical slug (e.g. "legal"); limits the choice to that
+	 *                                 vertical's patterns when it has at least three page sections.
+	 * @param string $template         Optional page template slug, e.g. "page-no-title".
+	 * @return array{title:string,patterns:string[],pattern_count:int,reasoning:string,personalized:bool,warnings:string[],text_error:string,edit_url:string,view_url:string}|array{error:string}
+	 */
+	public static function generate_page( string $description, bool $personalize_text = true, string $vertical = '', string $template = '' ): array {
+		// Two AI calls of up to request_timeout() each can outlast PHP's limit on a web request.
+		if ( function_exists( 'set_time_limit' ) ) {
+			set_time_limit( (int) ceil( 2 * self::request_timeout() ) + 60 ); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- two AI calls can outlast the default limit.
+		}
+
+		$selection = self::select_patterns( $description, $vertical );
+
+		if ( isset( $selection['error'] ) ) {
+			return $selection;
+		}
+
+		$page_title   = $selection['title'];
+		$slugs        = $selection['patterns'];
 		$personalized = false;
 		$sections     = $slugs;
 		$warnings     = array();
 		$text_error   = '';
 
 		if ( $personalize_text ) {
-			$language  = is_string( $data['language'] ?? null ) ? sanitize_text_field( $data['language'] ) : '';
-			$rewritten = self::personalize_sections( $slugs, $description, $language );
+			$rewritten = self::personalize_sections( $slugs, $description, $selection['language'] );
 
 			if ( is_wp_error( $rewritten ) ) {
 				$text_error = $rewritten->get_error_message();
@@ -555,12 +605,9 @@ class AI_Integration {
 			return array( 'error' => $post_id->get_error_message() );
 		}
 
-		$reasoning = $data['reasoning'] ?? '';
+		$reasoning = $selection['reasoning'];
 
-		update_post_meta( $post_id, '_waygate_reasoning', $reasoning );
-		update_post_meta( $post_id, '_waygate_patterns', wp_json_encode( $slugs ) );
-		update_post_meta( $post_id, '_waygate_generated_at', current_time( 'mysql' ) );
-		update_post_meta( $post_id, '_waygate_personalized', $personalized ? '1' : '0' );
+		self::record_page_meta( $post_id, $slugs, $reasoning, $personalized );
 
 		return array(
 			'title'         => $page_title,
@@ -573,5 +620,20 @@ class AI_Integration {
 			'edit_url'      => get_edit_post_link( $post_id, 'raw' ),
 			'view_url'      => get_permalink( $post_id ),
 		);
+	}
+
+	/**
+	 * Store the Waygate generation meta on a generated page.
+	 *
+	 * @param int      $post_id      Generated page ID.
+	 * @param string[] $slugs        Ordered pattern slugs the page was assembled from.
+	 * @param string   $reasoning    The AI's one-sentence pattern choice explanation.
+	 * @param bool     $personalized Whether the patterns' texts were rewritten.
+	 */
+	public static function record_page_meta( int $post_id, array $slugs, string $reasoning, bool $personalized ): void {
+		update_post_meta( $post_id, '_waygate_reasoning', $reasoning );
+		update_post_meta( $post_id, '_waygate_patterns', wp_json_encode( $slugs ) );
+		update_post_meta( $post_id, '_waygate_generated_at', current_time( 'mysql' ) );
+		update_post_meta( $post_id, '_waygate_personalized', $personalized ? '1' : '0' );
 	}
 }
