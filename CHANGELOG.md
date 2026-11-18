@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Page template** select in the AI form (Tools → Waygate) — created pages get the chosen template (`_wp_page_template`), for example a no-title template for a full-width homepage. Defaults to the theme's normal template; works for Aludra-built pages too
+- Progress feedback while generating: the submit button hides and a spinner with a message ("Choosing patterns…" / "Choosing patterns and rewriting text…") shows, since generation can take minutes
+- `AI_Integration::generate_page()` and `Pattern_Lab::create_page()` take an optional `$template` argument, applied as `_wp_page_template` post meta
+
 ## [1.3.0] - 2026-11-14
 
 ### Added

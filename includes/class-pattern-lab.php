@@ -533,9 +533,10 @@ class Pattern_Lab {
 	 * @param array<int,string|array> $sections Ordered pattern slugs or {pattern, texts, links}.
 	 * @param string                  $status   Post status ('draft' or 'publish').
 	 * @param string[]|null           $warnings Set to warnings for find strings that matched nothing.
+	 * @param string                  $template Page template slug, e.g. 'page-no-title' or 'default'.
 	 * @return int|\WP_Error Post ID on success, WP_Error on failure.
 	 */
-	public static function create_page( string $title, array $sections, string $status = 'draft', ?array &$warnings = null ) {
+	public static function create_page( string $title, array $sections, string $status = 'draft', ?array &$warnings = null, string $template = '' ) {
 		$warnings         = array();
 		$registered_slugs = array_column( self::get_patterns(), 'slug' );
 		$valid            = array();
@@ -562,32 +563,41 @@ class Pattern_Lab {
 		$aludra_sections = self::aludra_sections( $valid );
 
 		if ( null !== $aludra_sections && self::use_aludra() ) {
-			return self::create_page_with_aludra( $title, $aludra_sections, $status, $warnings );
-		}
-
-		if ( empty( $valid ) ) {
+			$post_id = self::create_page_with_aludra( $title, $aludra_sections, $status, $warnings );
+		} elseif ( empty( $valid ) ) {
 			return new \WP_Error( 'no_valid_patterns', 'No valid patterns were selected.' );
+		} else {
+			$composed = self::compose( $valid, $replacing );
+
+			if ( is_wp_error( $composed ) ) {
+				return $composed;
+			}
+
+			$warnings = $composed['warnings'];
+
+			// wp_insert_post() unslashes its input; slash it so backslashes in block JSON survive.
+			$post_id = wp_insert_post(
+				wp_slash(
+					array(
+						'post_title'   => sanitize_text_field( $title ),
+						'post_content' => $composed['content'] . "\n\n",
+						'post_status'  => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
+						'post_type'    => 'page',
+					)
+				),
+				true
+			);
 		}
 
-		$composed = self::compose( $valid, $replacing );
-
-		if ( is_wp_error( $composed ) ) {
-			return $composed;
+		if ( is_wp_error( $post_id ) || ! $post_id ) {
+			return $post_id;
 		}
 
-		$warnings = $composed['warnings'];
+		$template = sanitize_file_name( $template );
+		if ( '' !== $template && 'default' !== $template ) {
+			update_post_meta( $post_id, '_wp_page_template', $template );
+		}
 
-		// wp_insert_post() unslashes its input; slash it so backslashes in block JSON survive.
-		return wp_insert_post(
-			wp_slash(
-				array(
-					'post_title'   => sanitize_text_field( $title ),
-					'post_content' => $composed['content'] . "\n\n",
-					'post_status'  => in_array( $status, array( 'draft', 'publish' ), true ) ? $status : 'draft',
-					'post_type'    => 'page',
-				)
-			),
-			true
-		);
+		return $post_id;
 	}
 }
