@@ -11,9 +11,11 @@ Everything happens on **Tools → Waygate** (requires `manage_options`; creating
 3. Pick a **Vertical**, or leave **All patterns**.
 4. Pick a **Page template**, for example a no-title template for a full-width homepage.
 5. Leave **Rewrite pattern text to match my description** on for on-topic copy, or turn it off for
-   a faster, single-call result that keeps the patterns' sample text.
-6. Click **Generate Page**. Waygate shows a progress message while it calls the AI and creates the
-   draft, then links to it.
+   a faster result that keeps the patterns' sample text.
+6. Click **Generate Page**. The form runs the generation as a series of short requests — one to
+   choose the patterns, one per section to rewrite its text, one to create the draft — and shows
+   each step's progress. A failed step shows a **Retry this step** button and picks up where it
+   stopped. Without JavaScript the form falls back to a single request for the whole flow.
 7. Open the draft in the block editor, adjust and publish.
 
 Below the form, the **pattern catalog** lists every pattern Waygate can use, filterable by
@@ -53,10 +55,16 @@ markup and stays valid in the editor.
 - The text is written in the language of your description, even when it names a place where
   another language is spoken.
 - The rewrite asks fast models first (`mistral-small-latest`, `claude-haiku-4-5`,
-  `gemini-2.0-flash`): a large model can take minutes for a whole page. Waygate waits up to 120
-  seconds per AI call (`waygate_ai_request_timeout` filter).
-- If the text could not be rewritten, the page is still created with the patterns' text and the
-  notice says why.
+  `gemini-2.0-flash`): a large model can take minutes for a whole page. In the admin form each
+  rewrite is its own server request, waiting up to 45 seconds per section
+  (`waygate_ai_step_timeout` filter, capped by `waygate_ai_request_timeout`), so no single request
+  runs long enough to hit the web server's upstream timeout (nginx:
+  `fastcgi_read_timeout`, 60 seconds by default). The single-run `waygate` CLI and REST flows wait
+  up to 120 seconds per AI call (`waygate_ai_request_timeout` filter).
+- A pattern with nothing to rewrite (statistics-only sections, icon grids) is kept as is and the
+  generation continues. If a rewrite step fails outright, the form shows **Retry this step** and
+  picks up where it stopped; in the single-run flows the page is still created with the patterns'
+  text and the notice says why.
 - Links and images keep the patterns' values.
 - The pairs are stored as inlined pattern content, not `wp:pattern` references. Read the draft
   before publishing: the copy is the AI's.
@@ -79,3 +87,20 @@ Tools → Waygate (`waygate_use_aludra` option). When it is on:
   pattern markup and refuses a pattern that uses a block disabled under Settings → Aludra. Text
   rewriting works for these pages too: the pairs are passed on to `aludra/compose-page`.
 - A page that mixes theme and Aludra patterns is built as before, from `wp:pattern` references.
+
+## Troubleshooting
+
+**Blank page / `ERR_INCOMPLETE_CHUNKED_ENCODING` during generation** — the web server cut the
+request while PHP was still waiting on the AI. A single long request hits upstream read timeouts:
+nginx's default `fastcgi_read_timeout` is 60 seconds, while a selection plus rewrite can run for
+minutes. With JavaScript enabled the admin form already avoids this by sending each step as its
+own short request. If you still see it (the no-JS fallback, or a step timeout raised past the
+server's), raise your server's timeout — nginx:
+
+```nginx
+# In the fastcgi location block.
+fastcgi_read_timeout 300;
+```
+
+and keep `waygate_ai_request_timeout` (single-run flows) below it. The per-step
+`waygate_ai_step_timeout` (admin form, default 45 seconds) should stay below it too.

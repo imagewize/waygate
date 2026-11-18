@@ -193,4 +193,93 @@ class RestApiTest extends TestCase {
 
 		$this->assertTrue( $result );
 	}
+
+	// --- Stepwise generation endpoints (each AI call below server timeouts) ---
+
+	public function test_register_routes_registers_generate_select(): void {
+		Rest_API::register_routes();
+
+		$this->assertArrayHasKey( 'waygate/v1/generate/select', $GLOBALS['wp_rest_routes'] );
+	}
+
+	public function test_register_routes_registers_generate_pairs(): void {
+		Rest_API::register_routes();
+
+		$this->assertArrayHasKey( 'waygate/v1/generate/pairs', $GLOBALS['wp_rest_routes'] );
+	}
+
+	public function test_register_routes_registers_generate_build(): void {
+		Rest_API::register_routes();
+
+		$this->assertArrayHasKey( 'waygate/v1/generate/build', $GLOBALS['wp_rest_routes'] );
+	}
+
+	public function test_generate_endpoints_use_post_method(): void {
+		Rest_API::register_routes();
+
+		$this->assertSame( 'POST', $GLOBALS['wp_rest_routes']['waygate/v1/generate/select']['methods'] );
+		$this->assertSame( 'POST', $GLOBALS['wp_rest_routes']['waygate/v1/generate/pairs']['methods'] );
+		$this->assertSame( 'POST', $GLOBALS['wp_rest_routes']['waygate/v1/generate/build']['methods'] );
+	}
+
+	public function test_generate_pairs_rejects_unregistered_slug(): void {
+		$result = Rest_API::generate_pairs(
+			$this->request( [ 'description' => 'Bookstore', 'slug' => 'elayne/unknown' ] )
+		);
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'unknown_pattern', $result->get_error_code() );
+	}
+
+	public function test_generate_pairs_returns_plain_section_when_no_texts(): void {
+		$this->register( 'elayne/hero' );
+
+		$data = Rest_API::generate_pairs(
+			$this->request( [ 'description' => 'Bookstore', 'slug' => 'elayne/hero' ] )
+		)->get_data();
+
+		$this->assertSame( array( 'section' => array( 'pattern' => 'elayne/hero' ) ), $data );
+	}
+
+	public function test_generate_build_creates_page_with_sections(): void {
+		$this->register( 'elayne/hero' );
+
+		$data = Rest_API::generate_build(
+			$this->request( [ 'title' => 'My Page', 'sections' => array( 'elayne/hero' ) ] )
+		)->get_data();
+
+		$this->assertArrayHasKey( 'page_id', $data );
+		$this->assertIsInt( $data['page_id'] );
+		$this->assertSame( 'My Page', $GLOBALS['wp_last_inserted_post']['post_title'] );
+	}
+
+	public function test_generate_build_records_pattern_and_reasoning_meta(): void {
+		$this->register( 'elayne/hero' );
+
+		$data = Rest_API::generate_build(
+			$this->request( array(
+				'title'       => 'My Page',
+				'sections'    => array( 'elayne/hero' ),
+				'slugs'       => array( 'elayne/hero' ),
+				'reasoning'   => 'Fits a bookstore',
+				'personalized' => true,
+			) )
+		)->get_data();
+
+		$meta = $GLOBALS['wp_postmeta'][ $data['page_id'] ];
+
+		$this->assertSame( 'Fits a bookstore', $meta['_waygate_reasoning'] );
+		$this->assertSame( wp_json_encode( array( 'elayne/hero' ) ), $meta['_waygate_patterns'] );
+		$this->assertSame( '1', $meta['_waygate_personalized'] );
+	}
+
+	public function test_generate_build_applies_template_meta(): void {
+		$this->register( 'elayne/hero' );
+
+		Rest_API::generate_build(
+			$this->request( [ 'title' => 'My Page', 'sections' => array( 'elayne/hero' ), 'template' => 'page-no-title.php' ] )
+		);
+
+		$this->assertSame( 'page-no-title.php', $GLOBALS['wp_postmeta'][1]['_wp_page_template'] ?? null );
+	}
 }

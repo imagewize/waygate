@@ -215,9 +215,65 @@ class AiIntegrationTest extends TestCase {
 		// wp_ai_client_prompt doesn't exist here; the Error is caught and reported.
 		$this->register_hero();
 
-		$result = AI_Integration::personalize_sections( [ 'elayne/hero' ], 'carpenter' );
+		$result = AI_Integration::personalize_sections( array( 'elayne/hero' ), 'carpenter' );
 
 		$this->assertInstanceOf( \WP_Error::class, $result );
 		$this->assertSame( 'ai_failed', $result->get_error_code() );
+	}
+
+	public function test_step_timeout_defaults_to_45_seconds(): void {
+		$this->assertSame( 45.0, AI_Integration::step_timeout() );
+	}
+
+	public function test_step_timeout_is_filterable(): void {
+		add_filter( 'waygate_ai_step_timeout', fn() => 20.0 );
+
+		$this->assertSame( 20.0, AI_Integration::step_timeout() );
+
+		remove_all_filters( 'waygate_ai_step_timeout' );
+	}
+
+	public function test_step_timeout_never_exceeds_request_timeout(): void {
+		add_filter( 'waygate_ai_request_timeout', fn() => 10.0 );
+		add_filter( 'waygate_ai_step_timeout', fn() => 60.0 );
+
+		$this->assertSame( 10.0, AI_Integration::step_timeout() );
+
+		remove_all_filters( 'waygate_ai_step_timeout' );
+		remove_all_filters( 'waygate_ai_request_timeout' );
+	}
+
+	public function test_step_timeout_falls_back_on_invalid_values(): void {
+		add_filter( 'waygate_ai_step_timeout', fn() => -5.0 );
+
+		$this->assertSame( 45.0, AI_Integration::step_timeout() );
+
+		remove_all_filters( 'waygate_ai_step_timeout' );
+	}
+
+	public function test_record_page_meta_stores_generation_meta(): void {
+		$GLOBALS['wp_postmeta'] = [];
+
+		AI_Integration::record_page_meta( 1, array( 'elayne/hero' ), 'Fits a bookstore', true );
+
+		$this->assertSame( 'Fits a bookstore', $GLOBALS['wp_postmeta'][1]['_waygate_reasoning'] );
+		$this->assertSame( wp_json_encode( array( 'elayne/hero' ) ), $GLOBALS['wp_postmeta'][1]['_waygate_patterns'] );
+		$this->assertSame( '1', $GLOBALS['wp_postmeta'][1]['_waygate_personalized'] );
+	}
+
+	public function test_select_patterns_reports_ai_failure(): void {
+		// wp_ai_client_prompt doesn't exist here; the Error is caught and reported.
+		$this->register_hero();
+
+		$result = AI_Integration::select_patterns( 'A bookstore homepage' );
+
+		$this->assertIsArray( $result );
+		$this->assertStringContainsString( 'AI request failed', $result['error'] );
+	}
+
+	public function test_select_patterns_errors_without_registered_patterns(): void {
+		$result = AI_Integration::select_patterns( 'A bookstore homepage' );
+
+		$this->assertSame( array( 'error' => 'No page section patterns are registered.' ), $result );
 	}
 }
