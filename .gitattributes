@@ -1,0 +1,17 @@
+# Development-only paths stay out of git archive (dist zips built from the
+# tag via git archive / Packagist). Kept in step with .distignore; runtime
+# files (waygate.php, includes/, assets/, languages/, readme.txt, README.md,
+# CHANGELOG.md, LICENSE.md) still export.
+/.github export-ignore
+/.vibe export-ignore
+/docs export-ignore
+/tests export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/.distignore export-ignore
+/phpcs.xml export-ignore
+/phpunit.xml export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/CONTRIBUTING.md export-ignore
+/create-pr.sh export-ignore
