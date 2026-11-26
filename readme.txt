@@ -2,9 +2,9 @@
 Contributors: imagewize
 Tags: patterns, page-builder, ai, block-theme, gutenberg
 Requires at least: 7.0
-Tested up to: 7.1
+Tested up to: 7.2
 Requires PHP: 8.3
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,13 @@ Yes. Waygate exposes REST endpoints (`GET /wp-json/waygate/v1/patterns`, `POST /
 
 == Changelog ==
 
+= 1.4.0 =
+* Added: AI image selection from the Media Library; `waygate/get-pattern` lists a pattern's image slots and `waygate/create-page` accepts `images` pairs
+* Added: Page template select in the AI form
+* Changed: AI generation runs as a series of short REST requests with per-step progress and a Retry button, so server timeouts no longer cut it off
+* Added: `waygate_ai_step_timeout` filter (default 45 seconds)
+* Changed: Tested up to WordPress 7.2
+
 = 1.3.0 =
 * Changed: AI text personalization uses find/replace pairs instead of rewriting block markup, so personalized pages keep the patterns' markup and stay valid in the editor. It writes in the request's language, leaves statistics, names, phone numbers and emails alone, and reports texts it could not place on Tools → Waygate
 * Added: Text and link pairs on `waygate/create-page` and in `wp waygate build` maps; `waygate/get-pattern` ability and `wp waygate get <slug>` command listing a pattern's replaceable texts and links
@@ -119,6 +126,9 @@ limit WordPress.org enforces. The complete history is in CHANGELOG.md:
 https://github.com/imagewize/waygate/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.4.0 =
+Adds AI image selection from the Media Library, a page template picker and timeout-proof stepwise AI generation. Tested with WordPress 7.2.
 
 = 1.3.0 =
 AI personalization now replaces texts through find/replace pairs and keeps pages valid in the editor. Removes AI_Integration::rewrite_pattern_texts().
