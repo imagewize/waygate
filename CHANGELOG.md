@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-26
+
+### Changed
+- Tested up to WordPress 7.2 (7.2-RC3, PHP 8.5): abilities, REST routes, `wp waygate` build and Plugin Check pass. No code changes were needed for 7.2
+
 ### Added
 - **AI image selection from the Media Library** (#21). An **Images** row on the AI form (Tools → Waygate)
   opens the WordPress media frame — pick existing pictures or upload new ones — and the AI places them
